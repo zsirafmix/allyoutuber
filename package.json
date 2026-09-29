@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "tsx src/server/index.ts",
     "build": "prisma generate && next build",
-    "start": "NODE_ENV=production tsx src/server/index.ts",
+    "start": "npx prisma db push && (npm run prisma:seed || true) && NODE_ENV=production tsx src/server/index.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "prisma:generate": "prisma generate",
@@ -35,7 +35,9 @@
     "react-dom": "^18.3.1",
     "socket.io": "^4.8.4",
     "socket.io-client": "^4.8.4",
-    "tailwind-merge": "^3.7.0"
+    "tailwind-merge": "^3.7.0",
+    "prisma": "^5.22.0",
+    "tsx": "^4.23.15"
   },
   "devDependencies": {
     "@types/node": "^26.6.3",

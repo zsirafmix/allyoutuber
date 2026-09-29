@@ -2,7 +2,7 @@ services:
   - type: web
     name: allyoutuber
     runtime: node
-    plan: starter
+    plan: free
     region: frankfurt
     buildCommand: npm install && npm run build
     startCommand: npm run start
@@ -27,5 +27,5 @@ databases:
   - name: allyoutuber-db
     databaseName: allyoutuber
     user: allyoutuber_user
-    plan: starter
+    plan: free
     region: frankfurt
