@@ -1,0 +1,534 @@
+'use client';
+
+import React, { useState, useEffect, useCallback } from 'react';
+import { useParams, useSearchParams, useRouter } from 'next/navigation';
+import { useLanguage } from '@/lib/i18n';
+import { getSocket } from '@/lib/socketClient';
+import { formatDuration } from '@/lib/youtube';
+import YouTubePlayer from '@/components/YouTubePlayer';
+import FloatingReactions from '@/components/FloatingReactions';
+import SlotsGrid from '@/components/SlotsGrid';
+import VideoQueue, { QueueItemData } from '@/components/VideoQueue';
+import RoomChat, { ChatMessageData } from '@/components/RoomChat';
+import ModeratorDrawer from '@/components/ModeratorDrawer';
+import NicknameModal from '@/components/NicknameModal';
+import { Role, RoomType, VideoSource, DJMode, QueueMode } from '@prisma/client';
+import {
+  ShieldAlert,
+  Globe,
+  Lock,
+  Music,
+  Users,
+  Copy,
+  Check,
+  Disc,
+  ArrowLeft,
+  Volume2,
+  Sparkles,
+} from 'lucide-react';
+import Link from 'next/link';
+
+export default function RoomPage() {
+  const { t } = useLanguage();
+  const params = useParams();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+
+  const slug = params?.slug as string;
+  const inviteParam = searchParams?.get('invite') || undefined;
+
+  // Session & User
+  const [currentUser, setCurrentUser] = useState<{ id: string; nickname: string; isGlobalAdmin: boolean } | null>(null);
+  const [sessionToken, setSessionToken] = useState<string | null>(null);
+
+  // Room state from server
+  const [roomData, setRoomData] = useState<{
+    id: string;
+    slug: string;
+    name: string;
+    type: RoomType;
+    isLocked: boolean;
+  } | null>(null);
+
+  const [settings, setSettings] = useState<{
+    slotCount: number;
+    djMode: DJMode;
+    queueMode: QueueMode;
+    maxConsecutiveVideosPerUser: number;
+    maxQueuedVideosPerUser: number;
+    maxVideoDurationMinutes: number;
+  }>({
+    slotCount: 10,
+    djMode: DJMode.AUTO,
+    queueMode: QueueMode.FIFO,
+    maxConsecutiveVideosPerUser: 2,
+    maxQueuedVideosPerUser: 5,
+    maxVideoDurationMinutes: 15,
+  });
+
+  const [playback, setPlayback] = useState<{
+    videoId: string | null;
+    title: string | null;
+    duration: number;
+    thumbnailUrl: string | null;
+    submittedBy: string | null;
+    source: VideoSource;
+    startedAt: string | null;
+    paused: boolean;
+    currentPosition: number;
+    serverTime: number;
+  }>({
+    videoId: null,
+    title: null,
+    duration: 0,
+    thumbnailUrl: null,
+    submittedBy: null,
+    source: VideoSource.USER,
+    startedAt: null,
+    paused: false,
+    currentPosition: 0,
+    serverTime: Date.now(),
+  });
+
+  const [queue, setQueue] = useState<QueueItemData[]>([]);
+  const [members, setMembers] = useState<any[]>([]);
+  const [chatMessages, setChatMessages] = useState<ChatMessageData[]>([]);
+
+  // Modals & UI states
+  const [loading, setLoading] = useState(true);
+  const [accessError, setAccessError] = useState<string | null>(null);
+  const [showModDrawer, setShowModDrawer] = useState(false);
+  const [showNickModal, setShowNickModal] = useState(false);
+  const [targetClaimSlot, setTargetClaimSlot] = useState<number | null>(null);
+  const [inviteCopied, setInviteCopied] = useState(false);
+
+  // Load session from localStorage
+  useEffect(() => {
+    const token = localStorage.getItem('allyoutuber_token');
+    const userStr = localStorage.getItem('allyoutuber_user');
+    if (token && userStr) {
+      try {
+        setSessionToken(token);
+        setCurrentUser(JSON.parse(userStr));
+      } catch {}
+    }
+  }, []);
+
+  // Fetch initial room data from API
+  useEffect(() => {
+    async function loadRoom() {
+      try {
+        const url = `/api/rooms/${slug}${inviteParam ? `?invite=${inviteParam}` : ''}`;
+        const res = await fetch(url);
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error || 'Failed to enter room.');
+        }
+
+        setRoomData(data.room);
+        if (data.room.settings) setSettings(data.room.settings);
+        if (data.room.playbackState) {
+          setPlayback((prev) => ({
+            ...prev,
+            videoId: data.room.playbackState.currentVideoId,
+            title: data.room.playbackState.currentTitle,
+            duration: data.room.playbackState.currentDuration || 0,
+            thumbnailUrl: data.room.playbackState.currentThumbnail,
+            submittedBy: data.room.playbackState.currentSubmittedBy,
+            source: data.room.playbackState.currentSource || VideoSource.USER,
+            paused: data.room.playbackState.paused || false,
+          }));
+        }
+      } catch (err: any) {
+        setAccessError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadRoom();
+  }, [slug, inviteParam]);
+
+  // Socket.IO event setup
+  useEffect(() => {
+    if (!roomData?.id) return;
+
+    const socket = getSocket();
+
+    // 1. Join room event
+    socket.emit('room:join', {
+      roomId: roomData.id,
+      sessionToken: sessionToken || undefined,
+      inviteCode: inviteParam,
+    });
+
+    // 2. Room State Updates
+    const handleStateUpdate = (data: any) => {
+      if (data.room) setRoomData((prev) => ({ ...prev, ...data.room }));
+      if (data.settings) setSettings(data.settings);
+      if (data.playback) setPlayback(data.playback);
+      if (data.queue) setQueue(data.queue);
+      if (data.members) setMembers(data.members);
+    };
+
+    // 3. Chat History & Messages
+    const handleChatHistory = (history: ChatMessageData[]) => {
+      setChatMessages(history);
+    };
+
+    const handleChatMessage = (msg: ChatMessageData) => {
+      setChatMessages((prev) => [...prev, msg]);
+    };
+
+    const handleChatDeleted = ({ messageId }: { messageId: string }) => {
+      setChatMessages((prev) =>
+        prev.map((m) => (m.id === messageId ? { ...m, deletedAt: new Date() } : m))
+      );
+    };
+
+    const handleAccessDenied = ({ reason }: { reason: string }) => {
+      setAccessError(reason);
+    };
+
+    socket.on('room:state_update', handleStateUpdate);
+    socket.on('chat:history', handleChatHistory);
+    socket.on('chat:message', handleChatMessage);
+    socket.on('chat:deleted', handleChatDeleted);
+    socket.on('room:access_denied', handleAccessDenied);
+
+    return () => {
+      socket.off('room:state_update', handleStateUpdate);
+      socket.off('chat:history', handleChatHistory);
+      socket.off('chat:message', handleChatMessage);
+      socket.off('chat:deleted', handleChatDeleted);
+      socket.off('room:access_denied', handleAccessDenied);
+    };
+  }, [roomData?.id, sessionToken, inviteParam]);
+
+  // Determine current user's membership and role in this room
+  const currentMember = members.find((m) => m.userId === currentUser?.id);
+  const currentUserRole = currentMember?.role || (currentUser?.isGlobalAdmin ? Role.ADMIN : null);
+
+  // Claim Seat / Slot
+  const handleClaimSlot = (slotNum: number) => {
+    if (!sessionToken || !currentUser) {
+      setTargetClaimSlot(slotNum);
+      setShowNickModal(true);
+      return;
+    }
+
+    if (!roomData?.id) return;
+    const socket = getSocket();
+    socket.emit('room:claim_slot', {
+      roomId: roomData.id,
+      slotIndex: slotNum,
+      sessionToken,
+    });
+  };
+
+  const handleNicknameSuccess = (session: { sessionToken: string; user: any }) => {
+    setSessionToken(session.sessionToken);
+    setCurrentUser(session.user);
+    if (targetClaimSlot && roomData?.id) {
+      const socket = getSocket();
+      socket.emit('room:claim_slot', {
+        roomId: roomData.id,
+        slotIndex: targetClaimSlot,
+        sessionToken: session.sessionToken,
+      });
+      setTargetClaimSlot(null);
+    }
+  };
+
+  // Add Video
+  const handleAddVideo = async (url: string) => {
+    if (!roomData?.id) return;
+    if (!sessionToken) {
+      throw new Error(t('errors.notInSlot'));
+    }
+
+    const socket = getSocket();
+    socket.emit('queue:add', {
+      roomId: roomData.id,
+      videoUrl: url,
+      sessionToken,
+    });
+  };
+
+  // Vote on queue item
+  const handleVote = (queueItemId: string, value: 1 | -1) => {
+    if (!roomData?.id || !sessionToken) return;
+    const socket = getSocket();
+    socket.emit('queue:vote', {
+      roomId: roomData.id,
+      queueItemId,
+      value,
+      sessionToken,
+    });
+  };
+
+  // Remove queue item
+  const handleRemoveQueueItem = (queueItemId: string) => {
+    if (!roomData?.id || !sessionToken) return;
+    const socket = getSocket();
+    socket.emit('queue:remove', {
+      roomId: roomData.id,
+      queueItemId,
+      sessionToken,
+    });
+  };
+
+  // Reorder queue item
+  const handleReorderQueue = (queueItemId: string, targetPos: number) => {
+    if (!roomData?.id || !sessionToken) return;
+    const socket = getSocket();
+    socket.emit('queue:reorder', {
+      roomId: roomData.id,
+      queueItemId,
+      targetPosition: targetPos,
+      sessionToken,
+    });
+  };
+
+  // Send Chat message
+  const handleSendMessage = (msg: string) => {
+    if (!roomData?.id) return;
+    if (!sessionToken) {
+      setTargetClaimSlot(null);
+      setShowNickModal(true);
+      return;
+    }
+    const socket = getSocket();
+    socket.emit('chat:send', {
+      roomId: roomData.id,
+      message: msg,
+      sessionToken,
+    });
+  };
+
+  // Delete Chat message (mod)
+  const handleDeleteMessage = (messageId: string) => {
+    if (!roomData?.id || !sessionToken) return;
+    const socket = getSocket();
+    socket.emit('chat:delete', {
+      roomId: roomData.id,
+      messageId,
+      sessionToken,
+    });
+  };
+
+  // Mod Skip
+  const handleSkipVideo = () => {
+    if (!roomData?.id || !sessionToken) return;
+    const socket = getSocket();
+    socket.emit('mod:skip', {
+      roomId: roomData.id,
+      sessionToken,
+    });
+  };
+
+  // Mod Regenerate Invite
+  const handleRegenerateInvite = async (): Promise<string> => {
+    const res = await fetch(`/api/rooms/${slug}/invite`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to regenerate invite.');
+    return data.inviteCode;
+  };
+
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(window.location.href);
+    setInviteCopied(true);
+    setTimeout(() => setInviteCopied(false), 2000);
+  };
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
+        <Disc size={48} className="text-violet-500 animate-spin" />
+        <p className="text-sm font-semibold text-slate-400">Belépés a szobába...</p>
+      </div>
+    );
+  }
+
+  if (accessError || !roomData) {
+    return (
+      <div className="max-w-md mx-auto my-12 p-8 rounded-3xl bg-slate-900 border border-slate-800 text-center shadow-2xl">
+        <div className="p-4 rounded-full bg-rose-500/20 text-rose-400 w-16 h-16 mx-auto flex items-center justify-center mb-4">
+          <Lock size={32} />
+        </div>
+        <h2 className="text-xl font-bold text-white mb-2">Hozzáférés megtagadva</h2>
+        <p className="text-sm text-slate-400 mb-6">{accessError || 'Szoba nem található.'}</p>
+        <Link
+          href="/"
+          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-sm font-bold transition"
+        >
+          <ArrowLeft size={16} /> Vissza a szobalistához
+        </Link>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* 1. Room Header Info */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-2xl bg-slate-900/90 border border-slate-800/80 shadow-xl">
+        <div className="flex items-center gap-3">
+          <Link href="/" className="p-2 rounded-xl bg-slate-800 text-slate-400 hover:text-white transition">
+            <ArrowLeft size={18} />
+          </Link>
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl sm:text-2xl font-black text-white">{roomData.name}</h1>
+              {roomData.type === RoomType.PRIVATE ? (
+                <span className="flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                  <Lock size={10} /> {t('room.privateBadge')}
+                </span>
+              ) : (
+                <span className="flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+                  <Globe size={10} /> {t('room.publicBadge')}
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-slate-400 font-mono mt-0.5">/room/{roomData.slug}</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          {/* Share / Copy link */}
+          <button
+            onClick={handleCopyLink}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300 transition"
+            title={t('room.copyInvite')}
+          >
+            {inviteCopied ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
+            <span className="hidden sm:inline">{inviteCopied ? 'Másolva!' : t('room.copyInvite')}</span>
+          </button>
+
+          {/* Moderation Controls Drawer Toggle */}
+          {(currentUserRole === Role.MODERATOR || currentUserRole === Role.ADMIN) && (
+            <button
+              onClick={() => setShowModDrawer(true)}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-violet-600/30 hover:bg-violet-600/50 border border-violet-500/50 text-xs font-bold text-violet-200 transition"
+            >
+              <ShieldAlert size={15} />
+              <span>{t('mod.title')}</span>
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Main Responsive Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* Left Column (Desktop 7 cols / Mobile Full) */}
+        <div className="lg:col-span-7 flex flex-col gap-5">
+          {/* 2. YouTube Video Player (16:9) */}
+          <div className="relative">
+            <YouTubePlayer
+              videoId={playback.videoId}
+              currentPosition={playback.currentPosition}
+              paused={playback.paused}
+              serverTime={playback.serverTime}
+              onEnded={() => {
+                // Video ended natively, server clock will handle pop or client can ping
+              }}
+            />
+          </div>
+
+          {/* 3. NOW PLAYING (MOST JÁTSZIK) Info Card */}
+          <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-xl">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-black uppercase tracking-wider text-cyan-400 flex items-center gap-1.5">
+                <Music size={14} /> {t('room.nowPlayingTitle')}
+              </span>
+              <span className="text-xs text-slate-400 font-mono">
+                {formatDuration(playback.duration)}
+              </span>
+            </div>
+
+            <h3 className="text-base sm:text-lg font-bold text-white truncate" title={playback.title || '—'}>
+              {playback.title || t('room.emptyQueue')}
+            </h3>
+
+            <div className="flex items-center gap-2 mt-2">
+              <span className="text-xs text-slate-400 font-medium">
+                {t('queue.submittedBy')}: <strong className="text-slate-200">{playback.submittedBy || 'System'}</strong>
+              </span>
+              <span
+                className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                  playback.source === VideoSource.DJ
+                    ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
+                    : playback.source === VideoSource.ADMIN
+                    ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                    : 'bg-slate-800 text-slate-300'
+                }`}
+              >
+                {playback.source === VideoSource.DJ ? '🤖 DJ' : playback.source}
+              </span>
+            </div>
+          </div>
+
+          {/* 4. Floating Emoji Reactions Toolbar */}
+          <FloatingReactions roomId={roomData.id} />
+
+          {/* 5. Add Video to Queue & Queue List */}
+          <VideoQueue
+            queue={queue}
+            currentUserId={currentUser?.id}
+            currentUserRole={currentUserRole}
+            onAddVideo={handleAddVideo}
+            onVote={handleVote}
+            onRemove={handleRemoveQueueItem}
+            onReorder={handleReorderQueue}
+          />
+        </div>
+
+        {/* Right Column (Desktop 5 cols / Mobile Below) */}
+        <div className="lg:col-span-5 flex flex-col gap-5">
+          {/* 6. Numbered User Seats (1..10) */}
+          <SlotsGrid
+            slotCount={settings.slotCount || 10}
+            members={members}
+            currentUserId={currentUser?.id}
+            onClaimSlot={handleClaimSlot}
+          />
+
+          {/* 7. Live Room Chat */}
+          <RoomChat
+            messages={chatMessages}
+            currentUserRole={currentUserRole}
+            onSendMessage={handleSendMessage}
+            onDeleteMessage={handleDeleteMessage}
+          />
+        </div>
+      </div>
+
+      {/* Nickname selection modal */}
+      <NicknameModal
+        isOpen={showNickModal}
+        targetSlot={targetClaimSlot}
+        onClose={() => {
+          setShowNickModal(false);
+          setTargetClaimSlot(null);
+        }}
+        onSuccess={handleNicknameSuccess}
+      />
+
+      {/* Moderator Drawer */}
+      <ModeratorDrawer
+        isOpen={showModDrawer}
+        onClose={() => setShowModDrawer(false)}
+        room={roomData}
+        settings={settings}
+        members={members}
+        currentUserId={currentUser?.id}
+        currentUserRole={currentUserRole}
+        onSkipVideo={handleSkipVideo}
+        onRegenerateInvite={handleRegenerateInvite}
+      />
+    </div>
+  );
+}
