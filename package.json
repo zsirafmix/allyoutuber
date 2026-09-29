@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "tsx src/server/index.ts",
     "build": "prisma generate && next build",
-    "start": "npx prisma db push && (npm run prisma:seed || true) && NODE_ENV=production tsx src/server/index.ts",
+    "start": "node scripts/start.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "prisma:generate": "prisma generate",
