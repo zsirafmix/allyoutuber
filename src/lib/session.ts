@@ -112,3 +112,80 @@ export async function getSession(sessionToken: string): Promise<AuthSession | nu
     isGlobalAdmin: session.user.isGlobalAdmin,
   };
 }
+
+/**
+ * Updates a user's nickname, ensuring uniqueness and preserving admin status/identity.
+ */
+export async function updateUserNickname(
+  userId: string,
+  newNickname: string
+): Promise<{ id: string; nickname: string; isGlobalAdmin: boolean }> {
+  const sanitizedNick = (newNickname || '').trim().slice(0, 24);
+  if (sanitizedNick.length < 2) {
+    throw new Error('A nicknévnek legalább 2 karakter hosszúnak kell lennie.');
+  }
+
+  // Check if nickname is already taken by ANOTHER user (case-insensitive)
+  const existingUser = await prisma.user.findFirst({
+    where: {
+      nickname: {
+        equals: sanitizedNick,
+        mode: 'insensitive',
+      },
+      id: {
+        not: userId,
+      },
+    },
+  });
+
+  if (existingUser) {
+    throw new Error(`A(z) "${sanitizedNick}" nicknév már foglalt egy másik felhasználó által.`);
+  }
+
+  const currentUser = await prisma.user.findUnique({
+    where: { id: userId },
+  });
+
+  if (!currentUser) {
+    throw new Error('Felhasználó nem található.');
+  }
+
+  const oldNick = currentUser.nickname;
+
+  // Update user in database
+  const updatedUser = await prisma.user.update({
+    where: { id: userId },
+    data: {
+      nickname: sanitizedNick,
+      updatedAt: new Date(),
+    },
+  });
+
+  // If this user is the master admin, update master_admin_config
+  try {
+    const { updateAdminUsername } = await import('./adminAuth');
+    await updateAdminUsername(userId, sanitizedNick);
+  } catch (err) {
+    console.error('Failed to sync master admin config on nickname change:', err);
+  }
+
+  // Record audit log
+  try {
+    await prisma.auditLog.create({
+      data: {
+        userId: updatedUser.id,
+        userNick: sanitizedNick,
+        action: 'UPDATE_NICKNAME',
+        details: JSON.stringify({ oldNickname: oldNick, newNickname: sanitizedNick }),
+      },
+    });
+  } catch (err) {
+    console.error('Failed to record audit log on nickname change:', err);
+  }
+
+  return {
+    id: updatedUser.id,
+    nickname: updatedUser.nickname,
+    isGlobalAdmin: updatedUser.isGlobalAdmin,
+  };
+}

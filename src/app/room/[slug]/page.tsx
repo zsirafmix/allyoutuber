@@ -137,9 +137,21 @@ export default function RoomPage() {
 
   useEffect(() => {
     loadSession();
-    window.addEventListener('allyoutuber:session_updated', loadSession);
-    return () => window.removeEventListener('allyoutuber:session_updated', loadSession);
-  }, [loadSession]);
+    const handleSessionUpdated = () => {
+      loadSession();
+      if (roomData?.id) {
+        const token = localStorage.getItem('allyoutuber_token');
+        const socket = getSocket();
+        socket.emit('room:join', {
+          roomId: roomData.id,
+          sessionToken: token || undefined,
+          inviteCode: inviteParam,
+        });
+      }
+    };
+    window.addEventListener('allyoutuber:session_updated', handleSessionUpdated);
+    return () => window.removeEventListener('allyoutuber:session_updated', handleSessionUpdated);
+  }, [loadSession, roomData?.id, inviteParam]);
 
   // Fetch initial room data from API
   useEffect(() => {

@@ -1,7 +1,7 @@
 import { Server as SocketIOServer, Socket } from 'socket.io';
 import { Server as HTTPServer } from 'http';
 import prisma from '../lib/prisma';
-import { getSession } from '../lib/session';
+import { getSession, updateUserNickname } from '../lib/session';
 import { claimSlot, validateRoomAccess, regenerateRoomInvite } from '../lib/room';
 import { getYouTubeMetadata } from '../lib/youtube';
 import { addToQueue, getRoomQueue, popNextVideo, removeQueueItem, reorderQueueItem } from '../lib/queue';
@@ -252,6 +252,32 @@ export function setupSocketIO(httpServer: HTTPServer) {
         await broadcastRoomState(roomId);
       } catch (err: any) {
         socket.emit('error', { message: err.message || 'Failed to claim seat.' });
+      }
+    });
+
+    // 2b. Nickname update
+    socket.on('user:update_nickname', async (data: { roomId?: string; sessionToken: string; newNickname: string }) => {
+      try {
+        const { roomId, sessionToken, newNickname } = data;
+        const session = await getSession(sessionToken);
+        if (!session) {
+          socket.emit('error', { message: 'Invalid session.' });
+          return;
+        }
+
+        const updated = await updateUserNickname(session.userId, newNickname);
+
+        const active = activeUsers.get(socket.id);
+        if (active) {
+          active.nickname = updated.nickname;
+        }
+
+        if (roomId) {
+          await broadcastRoomState(roomId);
+        }
+        socket.emit('user:nickname_updated', { user: updated });
+      } catch (err: any) {
+        socket.emit('error', { message: err.message || 'Failed to update nickname.' });
       }
     });
 

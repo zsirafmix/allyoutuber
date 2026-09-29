@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import prisma from '../src/lib/prisma';
-import { createSessionForNickname, getSession } from '../src/lib/session';
+import { createSessionForNickname, getSession, updateUserNickname } from '../src/lib/session';
 
 describe('User Persistence & Identity Memory', () => {
   const testNick = 'PersistentDJ';
@@ -52,5 +52,36 @@ describe('User Persistence & Identity Memory', () => {
 
     const auth = await getSession(session3.sessionToken);
     expect(auth?.isGlobalAdmin).toBe(true);
+  });
+
+  it('updates nickname smoothly while keeping the same userId and admin rights', async () => {
+    const updated = await updateUserNickname(firstUserId, 'RenamedDJ');
+    expect(updated.id).toBe(firstUserId);
+    expect(updated.nickname).toBe('RenamedDJ');
+    expect(updated.isGlobalAdmin).toBe(true);
+
+    const checkUser = await prisma.user.findUnique({ where: { id: firstUserId } });
+    expect(checkUser?.nickname).toBe('RenamedDJ');
+  });
+
+  it('rejects nickname change if another user already owns the target nickname', async () => {
+    // Create another user
+    const otherUser = await createSessionForNickname('OtherDJ');
+    expect(otherUser.user.id).not.toBe(firstUserId);
+
+    // Attempting to rename firstUserId to 'OtherDJ' should throw collision error
+    await expect(
+      updateUserNickname(firstUserId, 'otherdj')
+    ).rejects.toThrow('már foglalt egy másik felhasználó által');
+
+    // Clean up otherUser
+    await prisma.userSession.deleteMany({ where: { userId: otherUser.user.id } });
+    await prisma.user.delete({ where: { id: otherUser.user.id } });
+  });
+
+  it('rejects nickname change if nickname is too short', async () => {
+    await expect(
+      updateUserNickname(firstUserId, 'A')
+    ).rejects.toThrow('legalább 2 karakter');
   });
 });

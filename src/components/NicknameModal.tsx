@@ -37,8 +37,12 @@ export default function NicknameModal({ isOpen, onClose, onSuccess, targetSlot, 
       return;
     }
 
-    // Check if nickname is already occupied in this room
-    if (occupiedNicks.some((n) => n.toLowerCase() === trimmed.toLowerCase())) {
+    const currentSavedNick = typeof window !== 'undefined' ? localStorage.getItem('allyoutuber_saved_nick') : null;
+    // Check if nickname is already occupied in this room (excluding self)
+    if (
+      trimmed.toLowerCase() !== currentSavedNick?.toLowerCase() &&
+      occupiedNicks.some((n) => n.toLowerCase() === trimmed.toLowerCase())
+    ) {
       setError(`A(z) "${trimmed}" nicknév már foglalt ebben a szobában! Kérlek, válassz másikat.`);
       return;
     }
@@ -47,20 +51,43 @@ export default function NicknameModal({ isOpen, onClose, onSuccess, targetSlot, 
     setError(null);
 
     try {
-      const res = await fetch('/api/session', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nickname: trimmed }),
-      });
+      const token = localStorage.getItem('allyoutuber_token');
+      let res: Response;
+      if (token) {
+        // Authenticated user: rename without losing ID or admin privileges
+        res = await fetch('/api/session', {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ nickname: trimmed }),
+        });
+
+        if (res.status === 401) {
+          // Token expired, fallback to POST
+          res = await fetch('/api/session', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ nickname: trimmed }),
+          });
+        }
+      } else {
+        res = await fetch('/api/session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ nickname: trimmed }),
+        });
+      }
 
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || 'Hiba történt a session létrehozásakor.');
+        throw new Error(data.error || 'Hiba történt a nicknév mentésekor.');
       }
 
       localStorage.setItem('allyoutuber_token', data.sessionToken);
       localStorage.setItem('allyoutuber_user', JSON.stringify(data.user));
-      localStorage.setItem('allyoutuber_saved_nick', trimmed);
+      localStorage.setItem('allyoutuber_saved_nick', data.user.nickname);
       window.dispatchEvent(new CustomEvent('allyoutuber:session_updated', { detail: data }));
 
       onSuccess(data);

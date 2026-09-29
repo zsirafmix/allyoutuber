@@ -183,3 +183,19 @@ export async function loginPermanentAdmin(password: string, sessionToken?: strin
 
   return { sessionToken: newSessionToken, user };
 }
+
+/**
+ * Updates the stored master admin username in AppSettings if the user is the master admin.
+ */
+export async function updateAdminUsername(userId: string, newUsername: string): Promise<boolean> {
+  const config = await getAdminConfig();
+  if (config && config.userId === userId) {
+    config.username = newUsername;
+    await prisma.appSettings.update({
+      where: { key: ADMIN_CONFIG_KEY },
+      data: { value: JSON.stringify(config) },
+    });
+    return true;
+  }
+  return false;
+}

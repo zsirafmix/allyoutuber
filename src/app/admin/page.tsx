@@ -38,6 +38,12 @@ export default function AdminPage() {
   const [submitting, setSubmitting] = useState(false);
   const [deletingRoomSlug, setDeletingRoomSlug] = useState<string | null>(null);
 
+  // Admin nickname edit state
+  const [adminNewNick, setAdminNewNick] = useState('');
+  const [renamingAdmin, setRenamingAdmin] = useState(false);
+  const [renameError, setRenameError] = useState<string | null>(null);
+  const [renameSuccess, setRenameSuccess] = useState<string | null>(null);
+
   // Dashboard metrics
   const [stats, setStats] = useState<{
     rooms: any[];
@@ -115,7 +121,12 @@ export default function AdminPage() {
       setInitialized(data.initialized);
       setAdminUsername(data.username || null);
       setIsAuthenticated(data.isAuthenticated);
-      if (data.user) setAdminUser(data.user);
+      if (data.user) {
+        setAdminUser(data.user);
+        setAdminNewNick(data.user.nickname);
+      } else if (data.username) {
+        setAdminNewNick(data.username);
+      }
 
       if (data.isAuthenticated) {
         await loadDashboard();
@@ -124,6 +135,49 @@ export default function AdminPage() {
       console.error(err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleAdminRename = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setRenameError(null);
+    setRenameSuccess(null);
+
+    const trimmed = adminNewNick.trim();
+    if (trimmed.length < 2 || trimmed.length > 24) {
+      setRenameError('A nicknévnek 2 és 24 karakter között kell lennie.');
+      return;
+    }
+
+    setRenamingAdmin(true);
+    try {
+      const token = localStorage.getItem('allyoutuber_token');
+      const res = await fetch('/api/session', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ nickname: trimmed }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'A nicknév módosítása sikertelen.');
+      }
+
+      setAdminUsername(data.user.nickname);
+      setAdminUser(data.user);
+      localStorage.setItem('allyoutuber_saved_nick', data.user.nickname);
+      localStorage.setItem('allyoutuber_user', JSON.stringify(data.user));
+      window.dispatchEvent(new CustomEvent('allyoutuber:session_updated', { detail: data }));
+
+      setRenameSuccess(`Admin nickneved sikeresen módosítva: "${data.user.nickname}"!`);
+      await loadDashboard();
+    } catch (err: any) {
+      setRenameError(err.message);
+    } finally {
+      setRenamingAdmin(false);
     }
   };
 
@@ -432,6 +486,62 @@ export default function AdminPage() {
                 <ScrollText size={24} />
               </div>
             </div>
+          </div>
+
+          {/* Admin Profile & Nickname Management */}
+          <div className="p-6 rounded-2xl bg-gradient-to-r from-slate-900 via-amber-950/20 to-slate-900 border border-amber-500/30 shadow-xl space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="p-3 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                  <Shield size={24} />
+                </div>
+                <div>
+                  <h2 className="text-base font-bold text-white flex items-center gap-2">
+                    <span>Rendszergazdai Profil & Saját Nicknév Módosítása</span>
+                    <span className="text-[10px] font-extrabold px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                      FŐADMIN
+                    </span>
+                  </h2>
+                  <p className="text-xs text-slate-400">
+                    Jelenlegi bejelentkezett admin: <strong className="text-amber-400">{adminUser?.nickname || adminUsername}</strong>
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {renameError && (
+              <div className="p-3 rounded-xl bg-red-500/20 border border-red-500/40 text-red-300 text-xs">
+                {renameError}
+              </div>
+            )}
+
+            {renameSuccess && (
+              <div className="p-3 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs flex items-center gap-2">
+                <CheckCircle size={14} className="text-emerald-400 flex-shrink-0" />
+                <span>{renameSuccess}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleAdminRename} className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
+              <div className="flex-1">
+                <input
+                  type="text"
+                  value={adminNewNick}
+                  onChange={(e) => setAdminNewNick(e.target.value)}
+                  placeholder="Új admin nicknév..."
+                  maxLength={24}
+                  className="w-full px-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 placeholder-slate-500"
+                  disabled={renamingAdmin}
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={renamingAdmin || !adminNewNick.trim() || adminNewNick.trim() === (adminUser?.nickname || adminUsername)}
+                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-white font-bold text-xs shadow-lg shadow-amber-600/30 transition disabled:opacity-50 whitespace-nowrap"
+              >
+                {renamingAdmin ? 'Mentés...' : 'Nicknév Frissítése'}
+              </button>
+            </form>
           </div>
 
           {/* Rooms Table */}

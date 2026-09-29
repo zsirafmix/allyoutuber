@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createSessionForNickname, getSession } from '@/lib/session';
+import { createSessionForNickname, getSession, updateUserNickname } from '@/lib/session';
 
 export async function POST(req: NextRequest) {
   try {
@@ -63,5 +63,51 @@ export async function DELETE(req: NextRequest) {
     return res;
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}
+
+export async function PATCH(req: NextRequest) {
+  try {
+    const authHeader = req.headers.get('authorization');
+    const tokenFromHeader = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : null;
+    const tokenFromCookie = req.cookies.get('allyoutuber_token')?.value;
+    const token = tokenFromHeader || tokenFromCookie;
+
+    if (!token) {
+      return NextResponse.json({ error: 'Nincs érvényes munkamenet azonosító.' }, { status: 401 });
+    }
+
+    const session = await getSession(token);
+    if (!session) {
+      return NextResponse.json({ error: 'Érvénytelen vagy lejárt munkamenet.' }, { status: 401 });
+    }
+
+    const body = await req.json();
+    const { nickname } = body;
+
+    if (!nickname || typeof nickname !== 'string') {
+      return NextResponse.json({ error: 'Érvényes nicknév megadása kötelező.' }, { status: 400 });
+    }
+
+    const updatedUser = await updateUserNickname(session.userId, nickname);
+
+    const res = NextResponse.json({
+      success: true,
+      sessionToken: token,
+      user: updatedUser,
+      message: 'Nicknév sikeresen módosítva.',
+    });
+
+    res.cookies.set('allyoutuber_token', token, {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 60 * 24 * 60 * 60,
+      path: '/',
+    });
+
+    return res;
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message || 'Hiba történt a nicknév módosításakor.' }, { status: 400 });
   }
 }
