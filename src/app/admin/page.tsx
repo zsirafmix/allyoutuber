@@ -74,6 +74,40 @@ export default function AdminPage() {
     }
   };
 
+  const [updatingUserId, setUpdatingUserId] = useState<string | null>(null);
+
+  const handleToggleGlobalAdmin = async (userId: string, targetNick: string, makeAdmin: boolean) => {
+    const actionText = makeAdmin
+      ? `főadminisztrátorrá szeretnéd tenni "${targetNick}" felhasználót`
+      : `vissza szeretnéd vonni "${targetNick}" főadminisztrátori jogát`;
+    if (!window.confirm(`Biztosan ${actionText}?`)) {
+      return;
+    }
+
+    setUpdatingUserId(userId);
+    try {
+      const token = localStorage.getItem('allyoutuber_token');
+      const res = await fetch(`/api/admin/users/${userId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ isGlobalAdmin: makeAdmin }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'A művelet sikertelen.');
+      }
+      alert(data.message || 'Sikeres módosítás.');
+      await loadDashboard();
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setUpdatingUserId(null);
+    }
+  };
+
   const checkAuthStatus = async () => {
     try {
       const res = await fetch('/api/admin/auth');
@@ -480,6 +514,7 @@ export default function AdminPage() {
                     <th className="py-2.5 px-3">Létrehozva</th>
                     <th className="py-2.5 px-3">Utolsó aktivitás</th>
                     <th className="py-2.5 px-3">Felhasználó ID</th>
+                    <th className="py-2.5 px-3 text-right">Művelet</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/60">
@@ -514,11 +549,29 @@ export default function AdminPage() {
                         <td className="py-2 px-3 font-mono text-slate-500 text-[10px]">
                           {u.id}
                         </td>
+                        <td className="py-2 px-3 text-right">
+                          {u.id !== adminUser?.id ? (
+                            <button
+                              onClick={() => handleToggleGlobalAdmin(u.id, u.nickname, !u.isGlobalAdmin)}
+                              disabled={updatingUserId === u.id}
+                              className={`px-2 py-1 rounded-lg text-[10px] font-bold transition disabled:opacity-50 ${
+                                u.isGlobalAdmin
+                                  ? 'bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white'
+                                  : 'bg-amber-500/20 hover:bg-amber-500/40 text-amber-300 border border-amber-500/40'
+                              }`}
+                              title={u.isGlobalAdmin ? 'Főadmin rang visszavonása' : 'Kinevezés Főadminisztrátornak'}
+                            >
+                              {u.isGlobalAdmin ? '- Főadmin jog' : '+ Legyen Főadmin'}
+                            </button>
+                          ) : (
+                            <span className="text-[10px] text-amber-400/60 font-semibold italic">Jelenlegi fiók</span>
+                          )}
+                        </td>
                       </tr>
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={5} className="py-4 text-center text-slate-500 italic">
+                      <td colSpan={6} className="py-4 text-center text-slate-500 italic">
                         Még nincs megjeleníthető felhasználó.
                       </td>
                     </tr>

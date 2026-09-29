@@ -520,7 +520,7 @@ export function setupSocketIO(httpServer: HTTPServer) {
 
         const isAuthorized = session.isGlobalAdmin || (requester && requester.role === Role.ADMIN);
         if (!isAuthorized) {
-          socket.emit('error', { message: 'Csak szoba admin vagy globális admin nevezhet ki moderátort.' });
+          socket.emit('error', { message: 'Csak szoba admin vagy globális admin módosíthat rangot.' });
           return;
         }
 
@@ -550,12 +550,13 @@ export function setupSocketIO(httpServer: HTTPServer) {
         });
 
         // System message
+        const roleLabel = newRole === Role.ADMIN ? 'Szoba Admin' : newRole === Role.MODERATOR ? 'Moderátor' : 'Felhasználó';
         await prisma.chatMessage.create({
           data: {
             roomId,
             senderNick: 'System',
             senderRole: Role.ADMIN,
-            message: `${session.nickname} megváltoztatta ${targetMember.user.nickname} rangját: ${newRole}.`,
+            message: `${session.nickname} beállította ${targetMember.user.nickname} rangját: ${roleLabel}.`,
             isSystem: true,
           },
         });

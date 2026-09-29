@@ -73,12 +73,37 @@ describe('Role & Moderation Permissions', () => {
     });
     expect(updated.role).toBe('MODERATOR');
 
+    // Promote Bob to ADMIN
+    const adminUpdated = await prisma.roomMember.update({
+      where: { id: member.id },
+      data: { role: 'ADMIN' },
+    });
+    expect(adminUpdated.role).toBe('ADMIN');
+
     // Demote Bob back to USER
     const demoted = await prisma.roomMember.update({
       where: { id: member.id },
       data: { role: 'USER' },
     });
     expect(demoted.role).toBe('USER');
+  });
+
+  it('allows promoting and demoting a user to/from Global Admin', async () => {
+    expect(otherUser.id).toBeDefined();
+
+    // Promote to Global Admin
+    const promotedUser = await prisma.user.update({
+      where: { id: otherUser.id },
+      data: { isGlobalAdmin: true },
+    });
+    expect(promotedUser.isGlobalAdmin).toBe(true);
+
+    // Revoke Global Admin
+    const demotedUser = await prisma.user.update({
+      where: { id: otherUser.id },
+      data: { isGlobalAdmin: false },
+    });
+    expect(demotedUser.isGlobalAdmin).toBe(false);
   });
 
   it('cascades room deletion cleanly including settings and members', async () => {

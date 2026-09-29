@@ -235,25 +235,57 @@ export default function ModeratorDrawer({
 
                     {/* Moderation Actions */}
                     <div className="flex items-center gap-1.5 self-end sm:self-center">
-                      {/* Promote/Demote Moderator (Admin only) */}
+                      {/* Promote/Demote Role (Admin only) */}
                       {canManageUser && (
-                        m.role === Role.MODERATOR ? (
-                          <button
-                            onClick={() => onSetRole?.(m.userId, Role.USER)}
-                            className="px-2 py-0.5 rounded bg-slate-700 hover:bg-slate-600 text-slate-200 text-[10px] font-bold transition"
-                            title="Moderátori jog visszavonása"
-                          >
-                            -MOD
-                          </button>
-                        ) : m.role === Role.USER ? (
-                          <button
-                            onClick={() => onSetRole?.(m.userId, Role.MODERATOR)}
-                            className="px-2 py-0.5 rounded bg-cyan-600/30 hover:bg-cyan-600/50 border border-cyan-500/40 text-cyan-200 text-[10px] font-bold transition"
-                            title="Kinevezés moderátornak"
-                          >
-                            +MOD
-                          </button>
-                        ) : null
+                        <div className="flex items-center gap-1">
+                          {m.role === Role.USER && (
+                            <>
+                              <button
+                                onClick={() => onSetRole?.(m.userId, Role.MODERATOR)}
+                                className="px-1.5 py-0.5 rounded bg-cyan-600/30 hover:bg-cyan-600/50 border border-cyan-500/40 text-cyan-200 text-[10px] font-bold transition"
+                                title="Kinevezés moderátornak"
+                              >
+                                +MOD
+                              </button>
+                              <button
+                                onClick={() => onSetRole?.(m.userId, Role.ADMIN)}
+                                className="px-1.5 py-0.5 rounded bg-amber-500/20 hover:bg-amber-500/40 border border-amber-500/40 text-amber-300 text-[10px] font-bold transition"
+                                title="Kinevezés szoba adminisztrátornak"
+                              >
+                                +ADMIN
+                              </button>
+                            </>
+                          )}
+
+                          {m.role === Role.MODERATOR && (
+                            <>
+                              <button
+                                onClick={() => onSetRole?.(m.userId, Role.USER)}
+                                className="px-1.5 py-0.5 rounded bg-slate-700 hover:bg-slate-600 text-slate-300 text-[10px] font-bold transition"
+                                title="Moderátori jog visszavonása sima felhasználóvá"
+                              >
+                                -MOD
+                              </button>
+                              <button
+                                onClick={() => onSetRole?.(m.userId, Role.ADMIN)}
+                                className="px-1.5 py-0.5 rounded bg-amber-500/20 hover:bg-amber-500/40 border border-amber-500/40 text-amber-300 text-[10px] font-bold transition"
+                                title="Előléptetés adminisztrátornak"
+                              >
+                                +ADMIN
+                              </button>
+                            </>
+                          )}
+
+                          {m.role === Role.ADMIN && (
+                            <button
+                              onClick={() => onSetRole?.(m.userId, Role.MODERATOR)}
+                              className="px-1.5 py-0.5 rounded bg-slate-700 hover:bg-slate-600 text-amber-300 text-[10px] font-bold transition"
+                              title="Admin rang visszavonása moderátorra"
+                            >
+                              -ADMIN
+                            </button>
+                          )}
+                        </div>
                       )}
 
                       {/* Mute/Unmute */}
