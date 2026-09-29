@@ -7,10 +7,10 @@
 - [x] Project tracking documents initialized (`TODO.md`, `CHANGELOG.md`, `README.md`, `ARCHITECTURE.md`, `DEPLOYMENT.md`, `SECURITY.md`)
 
 ## Phase 2: PostgreSQL & Prisma Database Layer
-- [ ] Define comprehensive Prisma schema with all 16 required models & enums
-- [ ] Run Prisma migration / push to local PostgreSQL
-- [ ] Create seed script with default DJ track list and initial settings
-- [ ] Verify Prisma client queries and database relationships
+- [x] Define comprehensive Prisma schema with all 16 required models & enums
+- [x] Run Prisma migration / push to local PostgreSQL
+- [x] Create seed script with default DJ track list and initial settings
+- [x] Verify Prisma client queries and database relationships
 
 ## Phase 3: Session & User Slot System
 - [ ] Implement cookie & token based session authentication (no password required for MVP)

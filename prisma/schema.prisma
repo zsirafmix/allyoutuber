@@ -1,0 +1,293 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  USER
+  MODERATOR
+  ADMIN
+}
+
+enum RoomType {
+  PUBLIC
+  PRIVATE
+}
+
+enum QueueMode {
+  FIFO
+  VOTE
+  HYBRID
+}
+
+enum DJMode {
+  OFF
+  AUTO
+  ALWAYS
+}
+
+enum VideoSource {
+  USER
+  DJ
+  ADMIN
+}
+
+model User {
+  id            String         @id @default(cuid())
+  nickname      String
+  isGlobalAdmin Boolean        @default(false)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  sessions      UserSession[]
+  roomMembers   RoomMember[]
+  roomsCreated  Room[]         @relation("RoomCreator")
+  queueItems    QueueItem[]
+  votes         Vote[]
+  chatMessages  ChatMessage[]
+  bansReceived  Ban[]          @relation("UserBans")
+  mutesReceived Mute[]         @relation("UserMutes")
+  auditLogs     AuditLog[]
+}
+
+model UserSession {
+  id           String    @id @default(cuid())
+  sessionToken String    @unique
+  userId       String
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt    DateTime
+  lastSeenAt   DateTime  @default(now())
+  userAgent    String?
+  ipAddress    String?
+  createdAt    DateTime  @default(now())
+
+  @@index([sessionToken])
+}
+
+model Room {
+  id              String            @id @default(cuid())
+  slug            String            @unique
+  name            String
+  type            RoomType          @default(PUBLIC)
+  isLocked        Boolean           @default(false)
+  createdById     String?
+  createdBy       User?             @relation("RoomCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  settings        RoomSettings?
+  members         RoomMember[]
+  invites         RoomInvite[]
+  queueItems      QueueItem[]
+  playbackState   PlaybackState?
+  playbackHistory PlaybackHistory[]
+  chatMessages    ChatMessage[]
+  bans            Ban[]
+  mutes           Mute[]
+  auditLogs       AuditLog[]
+
+  @@index([slug])
+  @@index([type])
+}
+
+model RoomSettings {
+  id                          String    @id @default(cuid())
+  roomId                      String    @unique
+  room                        Room      @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  slotCount                   Int       @default(10)
+  maxConsecutiveVideosPerUser Int       @default(2)
+  maxQueuedVideosPerUser      Int       @default(5)
+  maxVideoDurationMinutes     Int       @default(15)
+  allowShorts                 Boolean   @default(true)
+  allowLive                   Boolean   @default(false)
+  allowDuplicateVideos        Boolean   @default(false)
+  queueMode                   QueueMode @default(FIFO)
+  chatEnabled                 Boolean   @default(true)
+  reactionsEnabled            Boolean   @default(true)
+  votingEnabled               Boolean   @default(true)
+  djMode                      DJMode    @default(AUTO)
+  djMinimumQueueLength        Int       @default(2)
+  djRepeatProtectionCount     Int       @default(20)
+  djPlaylist                  String?   @db.Text
+  createdAt                   DateTime  @default(now())
+  updatedAt                   DateTime  @updatedAt
+}
+
+model RoomInvite {
+  id          String    @id @default(cuid())
+  roomId      String
+  room        Room      @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  codeHash    String    @unique
+  codePrefix  String
+  isActive    Boolean   @default(true)
+  createdById String?
+  createdAt   DateTime  @default(now())
+  expiresAt   DateTime?
+
+  @@index([codeHash])
+}
+
+model RoomMember {
+  id           String    @id @default(cuid())
+  roomId       String
+  room         Room      @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role         Role      @default(USER)
+  slotIndex    Int?
+  isMuted      Boolean   @default(false)
+  canSubmit    Boolean   @default(true)
+  isBanned     Boolean   @default(false)
+  joinedAt     DateTime  @default(now())
+  lastActiveAt DateTime  @default(now())
+
+  @@unique([roomId, userId])
+  @@index([roomId, slotIndex])
+}
+
+model VideoMetadata {
+  id           String   @id // YouTube video ID (11 chars)
+  title        String
+  duration     Int      // seconds
+  thumbnailUrl String
+  channelTitle String?
+  fetchedAt    DateTime @default(now())
+}
+
+model QueueItem {
+  id            String      @id @default(cuid())
+  roomId        String
+  room          Room        @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  videoId       String
+  title         String
+  duration      Int
+  thumbnailUrl  String
+  submittedById String?
+  submittedBy   User?       @relation(fields: [submittedById], references: [id], onDelete: SetNull)
+  submittedNick String
+  submittedAt   DateTime    @default(now())
+  source        VideoSource @default(USER)
+  position      Int         @default(0)
+  score         Int         @default(0)
+
+  votes         Vote[]
+
+  @@index([roomId, position])
+}
+
+model Vote {
+  id          String    @id @default(cuid())
+  queueItemId String
+  queueItem   QueueItem @relation(fields: [queueItemId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  roomId      String
+  value       Int       // +1 or -1
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([queueItemId, userId])
+  @@index([roomId])
+}
+
+model PlaybackState {
+  id                 String      @id @default(cuid())
+  roomId             String      @unique
+  room               Room        @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  currentVideoId     String?
+  currentTitle       String?
+  currentDuration    Int?
+  currentThumbnail   String?
+  currentSubmittedBy String?
+  currentSource      VideoSource @default(USER)
+  startedAt          DateTime?
+  paused             Boolean     @default(false)
+  currentPosition    Float       @default(0)
+  updatedAt          DateTime    @updatedAt
+}
+
+model PlaybackHistory {
+  id            String      @id @default(cuid())
+  roomId        String
+  room          Room        @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  videoId       String
+  title         String
+  duration      Int
+  thumbnailUrl  String
+  submittedById String?
+  submittedNick String
+  source        VideoSource @default(USER)
+  votes         Int         @default(0)
+  playedAt      DateTime    @default(now())
+
+  @@index([roomId, playedAt])
+}
+
+model ChatMessage {
+  id         String    @id @default(cuid())
+  roomId     String
+  room       Room      @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  userId     String?
+  user       User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  senderNick String
+  senderRole Role      @default(USER)
+  message    String    @db.Text
+  isSystem   Boolean   @default(false)
+  createdAt  DateTime  @default(now())
+  deletedAt  DateTime?
+
+  @@index([roomId, createdAt])
+}
+
+model Ban {
+  id          String    @id @default(cuid())
+  roomId      String?
+  room        Room?     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User      @relation("UserBans", fields: [userId], references: [id], onDelete: Cascade)
+  reason      String?
+  expiresAt   DateTime?
+  createdById String?
+  createdAt   DateTime  @default(now())
+
+  @@index([roomId, userId])
+}
+
+model Mute {
+  id          String    @id @default(cuid())
+  roomId      String
+  room        Room      @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User      @relation("UserMutes", fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt   DateTime?
+  createdById String?
+  createdAt   DateTime  @default(now())
+
+  @@index([roomId, userId])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  roomId    String?
+  room      Room?    @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userNick  String?
+  action    String
+  details   String?  @db.Text
+  ipAddress String?
+  createdAt DateTime @default(now())
+
+  @@index([roomId, createdAt])
+}
+
+model AppSettings {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String   @db.Text
+  updatedAt DateTime @updatedAt
+}
