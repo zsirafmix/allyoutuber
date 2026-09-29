@@ -316,8 +316,8 @@ export default function RoomPage() {
     });
   };
 
-  // Send Chat message
-  const handleSendMessage = (msg: string) => {
+  // Send Chat message (Public or Private Whisper)
+  const handleSendMessage = (msg: string, recipientUserId?: string) => {
     if (!roomData?.id) return;
     if (!sessionToken) {
       setTargetClaimSlot(null);
@@ -329,6 +329,7 @@ export default function RoomPage() {
       roomId: roomData.id,
       message: msg,
       sessionToken,
+      recipientUserId,
     });
   };
 
@@ -582,6 +583,8 @@ export default function RoomPage() {
           <RoomChat
             messages={chatMessages}
             currentUserRole={currentUserRole}
+            currentUserId={currentUser?.id}
+            members={members}
             onSendMessage={handleSendMessage}
             onDeleteMessage={handleDeleteMessage}
           />

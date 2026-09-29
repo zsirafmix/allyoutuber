@@ -172,6 +172,7 @@ export function setupSocketIO(httpServer: HTTPServer) {
         }
 
         socket.join(`room:${roomId}`);
+        socket.join(`user:${userId}`);
 
         // Register active user
         const memberRecord = room.members.find((m) => m.userId === userId);
@@ -193,9 +194,17 @@ export function setupSocketIO(httpServer: HTTPServer) {
           roomClockIntervals.set(roomId, interval);
         }
 
-        // Send recent chat messages
+        // Send recent chat messages (filter private messages to only show to sender and recipient)
         const recentChat = await prisma.chatMessage.findMany({
-          where: { roomId, deletedAt: null },
+          where: {
+            roomId,
+            deletedAt: null,
+            OR: [
+              { isPrivate: false },
+              { userId },
+              { recipientId: userId },
+            ],
+          },
           orderBy: { createdAt: 'desc' },
           take: 50,
         });
@@ -373,10 +382,10 @@ export function setupSocketIO(httpServer: HTTPServer) {
       }
     });
 
-    // 7. Live Chat Send Message
-    socket.on('chat:send', async (data: { roomId: string; message: string; sessionToken: string }) => {
+    // 7. Live Chat Send Message (Public or Private Whisper)
+    socket.on('chat:send', async (data: { roomId: string; message: string; sessionToken: string; recipientUserId?: string }) => {
       try {
-        const { roomId, message, sessionToken } = data;
+        const { roomId, message, sessionToken, recipientUserId } = data;
         const session = await getSession(sessionToken);
         if (!session) {
           socket.emit('error', { message: 'You must occupy a seat to chat.' });
@@ -399,6 +408,28 @@ export function setupSocketIO(httpServer: HTTPServer) {
           return;
         }
 
+        // Check recipient if private message
+        let recipientMember = null;
+        if (recipientUserId) {
+          recipientMember = await prisma.roomMember.findUnique({
+            where: { roomId_userId: { roomId, userId: recipientUserId } },
+            include: { user: true },
+          });
+
+          if (!recipientMember) {
+            socket.emit('error', { message: 'A címzett nem található a szobában.' });
+            return;
+          }
+
+          const isSenderAdminOrMod = session.isGlobalAdmin || (member && (member.role === Role.ADMIN || member.role === Role.MODERATOR));
+          const isRecipientAdminOrMod = recipientMember.user.isGlobalAdmin || recipientMember.role === Role.ADMIN || recipientMember.role === Role.MODERATOR;
+
+          if (!isSenderAdminOrMod && !isRecipientAdminOrMod) {
+            socket.emit('error', { message: 'Privát üzenet csak adminisztrátor vagy moderátor bevonásával küldhető.' });
+            return;
+          }
+        }
+
         const sanitized = sanitizeText(message).slice(0, 500);
         if (!sanitized) return;
 
@@ -410,10 +441,18 @@ export function setupSocketIO(httpServer: HTTPServer) {
             senderRole: member?.role || Role.USER,
             message: sanitized,
             isSystem: false,
+            isPrivate: !!recipientUserId,
+            recipientId: recipientUserId || null,
+            recipientNick: recipientMember ? recipientMember.user.nickname : null,
           },
         });
 
-        io.to(`room:${roomId}`).emit('chat:message', chatMsg);
+        if (recipientUserId) {
+          // Send private message only to sender and recipient user rooms
+          io.to(`user:${session.userId}`).to(`user:${recipientUserId}`).emit('chat:message', chatMsg);
+        } else {
+          io.to(`room:${roomId}`).emit('chat:message', chatMsg);
+        }
       } catch (err: any) {
         socket.emit('error', { message: err.message });
       }

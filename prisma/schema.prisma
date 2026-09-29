@@ -228,19 +228,23 @@ model PlaybackHistory {
 }
 
 model ChatMessage {
-  id         String    @id @default(cuid())
-  roomId     String
-  room       Room      @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  userId     String?
-  user       User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
-  senderNick String
-  senderRole Role      @default(USER)
-  message    String    @db.Text
-  isSystem   Boolean   @default(false)
-  createdAt  DateTime  @default(now())
-  deletedAt  DateTime?
+  id            String    @id @default(cuid())
+  roomId        String
+  room          Room      @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  userId        String?
+  user          User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  senderNick    String
+  senderRole    Role      @default(USER)
+  message       String    @db.Text
+  isSystem      Boolean   @default(false)
+  isPrivate     Boolean   @default(false)
+  recipientId   String?
+  recipientNick String?
+  createdAt     DateTime  @default(now())
+  deletedAt     DateTime?
 
   @@index([roomId, createdAt])
+  @@index([recipientId])
 }
 
 model Ban {
