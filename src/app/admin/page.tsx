@@ -14,91 +14,156 @@ import {
   ArrowLeft,
   CheckCircle,
   AlertTriangle,
+  UserCheck,
+  LogOut,
+  Sparkles,
 } from 'lucide-react';
 
 export default function AdminPage() {
   const { t } = useLanguage();
-  const [bootstrapToken, setBootstrapToken] = useState('');
-  const [sessionToken, setSessionToken] = useState<string | null>(null);
-  const [currentUser, setCurrentUser] = useState<any>(null);
-
   const [loading, setLoading] = useState(true);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [initialized, setInitialized] = useState(false);
+  const [adminUsername, setAdminUsername] = useState<string | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [adminUser, setAdminUser] = useState<any>(null);
+
+  // Form states
+  const [nickname, setNickname] = useState('Zsiraf');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  // Dashboard metrics
   const [stats, setStats] = useState<{
     rooms: any[];
     usersCount: number;
     recentLogs: any[];
   } | null>(null);
 
-  const [message, setMessage] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const token = localStorage.getItem('allyoutuber_token');
-    const userStr = localStorage.getItem('allyoutuber_user');
-    if (token) setSessionToken(token);
-    if (userStr) {
-      try {
-        const u = JSON.parse(userStr);
-        setCurrentUser(u);
-        if (u.isGlobalAdmin) setIsAdmin(true);
-      } catch {}
-    }
-  }, []);
-
-  const loadAdminData = async () => {
+  const checkAuthStatus = async () => {
     try {
-      const token = localStorage.getItem('allyoutuber_token');
-      const res = await fetch('/api/admin/overview', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await fetch('/api/admin/auth');
       const data = await res.json();
-      if (res.ok) {
-        setStats(data);
-        setIsAdmin(true);
-      } else {
-        setIsAdmin(false);
+      setInitialized(data.initialized);
+      setAdminUsername(data.username || null);
+      setIsAuthenticated(data.isAuthenticated);
+      if (data.user) setAdminUser(data.user);
+
+      if (data.isAuthenticated) {
+        await loadDashboard();
       }
-    } catch {
-      setIsAdmin(false);
+    } catch (err) {
+      console.error(err);
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    loadAdminData();
-  }, [sessionToken]);
-
-  const handleBootstrap = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!bootstrapToken.trim() || !sessionToken) return;
-
-    setError(null);
-    setMessage(null);
-
+  const loadDashboard = async () => {
     try {
-      const res = await fetch('/api/admin/bootstrap', {
+      const res = await fetch('/api/admin/overview');
+      const data = await res.json();
+      if (res.ok) {
+        setStats(data);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  useEffect(() => {
+    checkAuthStatus();
+  }, []);
+
+  // 1. Initial Setup Handler
+  const handleSetup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+
+    if (password.length < 4) {
+      setError('A jelszó legalább 4 karakter hosszú legyen.');
+      return;
+    }
+    if (password !== confirmPassword) {
+      setError('A két beírt jelszó nem egyezik meg!');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const res = await fetch('/api/admin/auth', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          bootstrapToken: bootstrapToken.trim(),
-          sessionToken,
+          action: 'setup',
+          nickname: nickname.trim(),
+          password,
         }),
       });
 
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || 'Hibás admin kulcs.');
+        throw new Error(data.error || 'Hiba történt az admin beállításakor.');
       }
 
-      setMessage(data.message || 'Sikeres globális admin azonosítás!');
-      setIsAdmin(true);
-      loadAdminData();
+      setSuccessMsg('Örök admin fiók sikeresen létrehozva!');
+      await checkAuthStatus();
     } catch (err: any) {
       setError(err.message);
+    } finally {
+      setSubmitting(false);
     }
   };
+
+  // 2. Login Handler
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    if (!loginPassword) return;
+
+    setSubmitting(true);
+    try {
+      const res = await fetch('/api/admin/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'login',
+          password: loginPassword,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Hibás jelszó.');
+      }
+
+      setSuccessMsg('Sikeres bejelentkezés!');
+      await checkAuthStatus();
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    document.cookie = 'allyoutuber_token=; Max-Age=0; path=/;';
+    localStorage.removeItem('allyoutuber_token');
+    setIsAuthenticated(false);
+    setAdminUser(null);
+    window.location.reload();
+  };
+
+  if (loading) {
+    return (
+      <div className="py-24 text-center text-sm text-slate-400">
+        Adminisztrációs állapot ellenőrzése...
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 max-w-6xl mx-auto">
@@ -114,31 +179,45 @@ export default function AdminPage() {
             </div>
             <div>
               <h1 className="text-xl font-bold text-white">{t('admin.panelTitle')}</h1>
-              <p className="text-xs text-slate-400">AllYouTuber Global Administration & Audit Hub</p>
+              <p className="text-xs text-slate-400">AllYouTuber Örök Rendszergazda Hub</p>
             </div>
           </div>
         </div>
+
+        {isAuthenticated && (
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-amber-400 font-bold flex items-center gap-1.5 bg-amber-500/10 px-3 py-1.5 rounded-lg border border-amber-500/20">
+              <UserCheck size={14} /> {adminUser?.nickname || adminUsername} (Admin)
+            </span>
+            <button
+              onClick={handleLogout}
+              className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition"
+              title="Kijelentkezés"
+            >
+              <LogOut size={16} />
+            </button>
+          </div>
+        )}
       </div>
 
-      {!isAdmin ? (
-        /* Bootstrap Unlock Form */
-        <div className="max-w-md mx-auto my-12 p-8 rounded-3xl bg-slate-900 border border-slate-800 shadow-2xl">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="p-3 rounded-2xl bg-amber-500/20 text-amber-400">
-              <KeyRound size={28} />
+      {/* Screen 1: FIRST-TIME SETUP (Örök admin jelszó beállítása legelső alkalommal) */}
+      {!initialized && (
+        <div className="max-w-md mx-auto my-8 p-8 rounded-3xl bg-slate-900 border border-amber-500/40 shadow-2xl relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 rounded-full blur-2xl pointer-events-none" />
+
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-3 rounded-2xl bg-amber-500/20 text-amber-400 border border-amber-500/30">
+              <Sparkles size={26} />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-white">Admin Azonosítás</h2>
-              <p className="text-xs text-slate-400">Add meg a szerver ADMIN_BOOTSTRAP_TOKEN kulcsát!</p>
+              <h2 className="text-lg font-bold text-white">Örök Admin Beállítása</h2>
+              <p className="text-xs text-amber-400/90 font-medium">Első indítás érzékelve</p>
             </div>
           </div>
 
-          {!sessionToken && (
-            <div className="mb-4 p-3 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-300 text-xs flex items-center gap-2">
-              <AlertTriangle size={16} />
-              <span>Kérlek, először a főoldalon válassz egy nicknevet a szoba belépésnél!</span>
-            </div>
-          )}
+          <p className="text-xs text-slate-400 mb-6 leading-relaxed">
+            Még nem létezik rendszergazda fiók. Állítsd be most az <b>örök admin jelszavadat</b> és nicknevedet, amellyel bármikor teljes hozzáférésed lesz az oldalhoz!
+          </p>
 
           {error && (
             <div className="mb-4 p-3 rounded-xl bg-red-500/20 border border-red-500/40 text-red-300 text-xs">
@@ -146,39 +225,116 @@ export default function AdminPage() {
             </div>
           )}
 
-          {message && (
-            <div className="mb-4 p-3 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs flex items-center gap-2">
-              <CheckCircle size={16} />
-              <span>{message}</span>
+          {successMsg && (
+            <div className="mb-4 p-3 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs">
+              {successMsg}
             </div>
           )}
 
-          <form onSubmit={handleBootstrap} className="space-y-4">
+          <form onSubmit={handleSetup} className="space-y-4">
             <div>
               <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                Admin Bootstrap Token
+                Admin Nicknév
+              </label>
+              <input
+                type="text"
+                required
+                value={nickname}
+                onChange={(e) => setNickname(e.target.value)}
+                placeholder="pl. Zsiraf"
+                className="w-full px-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                Admin Jelszó
               </label>
               <input
                 type="password"
                 required
-                value={bootstrapToken}
-                onChange={(e) => setBootstrapToken(e.target.value)}
-                placeholder="••••••••••••••••"
-                className="w-full px-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Válassz egy biztonságos jelszót..."
+                className="w-full px-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                Jelszó Megerősítése
+              </label>
+              <input
+                type="password"
+                required
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Írd be újra a jelszót..."
+                className="w-full px-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
               />
             </div>
 
             <button
               type="submit"
-              disabled={!sessionToken || !bootstrapToken.trim()}
-              className="w-full py-3 rounded-xl bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-white font-bold text-sm shadow-xl shadow-amber-600/30 transition disabled:opacity-40"
+              disabled={submitting}
+              className="w-full py-3 rounded-xl bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-white font-bold text-sm shadow-xl shadow-amber-600/30 transition disabled:opacity-50"
             >
-              Belépés Rendszergazdaként
+              {submitting ? 'Mentés folyamatban...' : 'Örök Admin Fiók Létrehozása'}
             </button>
           </form>
         </div>
-      ) : (
-        /* Full Admin Dashboard */
+      )}
+
+      {/* Screen 2: LOGIN (Ha már be van állítva a jelszó, de nincs bejelentkezve) */}
+      {initialized && !isAuthenticated && (
+        <div className="max-w-md mx-auto my-12 p-8 rounded-3xl bg-slate-900 border border-slate-800 shadow-2xl">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="p-3 rounded-2xl bg-amber-500/20 text-amber-400">
+              <KeyRound size={28} />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-white">Örök Admin Belépés</h2>
+              <p className="text-xs text-slate-400">
+                Fiók: <strong className="text-amber-400">{adminUsername || 'Admin'}</strong>
+              </p>
+            </div>
+          </div>
+
+          {error && (
+            <div className="mb-4 p-3 rounded-xl bg-red-500/20 border border-red-500/40 text-red-300 text-xs">
+              {error}
+            </div>
+          )}
+
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                Admin Jelszó
+              </label>
+              <input
+                type="password"
+                required
+                autoFocus
+                value={loginPassword}
+                onChange={(e) => setLoginPassword(e.target.value)}
+                placeholder="••••••••••••••••"
+                className="w-full px-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={submitting || !loginPassword}
+              className="w-full py-3 rounded-xl bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-white font-bold text-sm shadow-xl shadow-amber-600/30 transition disabled:opacity-50"
+            >
+              {submitting ? 'Ellenőrzés...' : 'Bejelentkezés Rendszergazdaként'}
+            </button>
+          </form>
+        </div>
+      )}
+
+      {/* Screen 3: DASHBOARD (Bejelentkezett admin) */}
+      {isAuthenticated && (
         <div className="space-y-8">
           {/* Key Metrics */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
