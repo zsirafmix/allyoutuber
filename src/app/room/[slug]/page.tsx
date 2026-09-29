@@ -597,6 +597,8 @@ export default function RoomPage() {
             queue={queue}
             currentUserId={currentUser?.id}
             currentUserRole={currentUserRole}
+            isSeated={Boolean(currentMember?.slotIndex !== null && currentMember?.slotIndex !== undefined)}
+            userSlotIndex={currentMember?.slotIndex ?? null}
             onAddVideo={handleAddVideo}
             onVote={handleVote}
             onRemove={handleRemoveQueueItem}
