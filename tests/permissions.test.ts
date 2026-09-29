@@ -53,4 +53,58 @@ describe('Role & Moderation Permissions', () => {
     const deleted = await prisma.queueItem.findUnique({ where: { id: queueItem.id } });
     expect(deleted).toBeNull();
   });
+
+  it('allows updating user role to MODERATOR and back to USER', async () => {
+    // Add Bob to room as USER
+    const member = await prisma.roomMember.create({
+      data: {
+        roomId,
+        userId: otherUser.id,
+        role: 'USER',
+      },
+    });
+
+    expect(member.role).toBe('USER');
+
+    // Promote Bob to MODERATOR
+    const updated = await prisma.roomMember.update({
+      where: { id: member.id },
+      data: { role: 'MODERATOR' },
+    });
+    expect(updated.role).toBe('MODERATOR');
+
+    // Demote Bob back to USER
+    const demoted = await prisma.roomMember.update({
+      where: { id: member.id },
+      data: { role: 'USER' },
+    });
+    expect(demoted.role).toBe('USER');
+  });
+
+  it('cascades room deletion cleanly including settings and members', async () => {
+    const tempRoom = await createRoom({
+      name: 'To Delete Room',
+      type: RoomType.PUBLIC,
+      userId: normalUser.id,
+    });
+
+    const tempRoomId = tempRoom.room.id;
+    // Verify room and settings exist
+    const roomBefore = await prisma.room.findUnique({
+      where: { id: tempRoomId },
+      include: { settings: true, members: true },
+    });
+    expect(roomBefore).not.toBeNull();
+    expect(roomBefore?.settings).not.toBeNull();
+
+    // Delete room
+    await prisma.room.delete({ where: { id: tempRoomId } });
+
+    // Verify room and its child records are gone
+    const roomAfter = await prisma.room.findUnique({ where: { id: tempRoomId } });
+    expect(roomAfter).toBeNull();
+
+    const settingsAfter = await prisma.roomSettings.findUnique({ where: { roomId: tempRoomId } });
+    expect(settingsAfter).toBeNull();
+  });
 });

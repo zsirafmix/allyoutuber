@@ -9,9 +9,10 @@ interface NicknameModalProps {
   onClose: () => void;
   onSuccess: (session: { sessionToken: string; user: { id: string; nickname: string; isGlobalAdmin: boolean } }) => void;
   targetSlot?: number | null;
+  occupiedNicks?: string[];
 }
 
-export default function NicknameModal({ isOpen, onClose, onSuccess, targetSlot }: NicknameModalProps) {
+export default function NicknameModal({ isOpen, onClose, onSuccess, targetSlot, occupiedNicks = [] }: NicknameModalProps) {
   const { t } = useLanguage();
   const [nickname, setNickname] = useState('');
   const [loading, setLoading] = useState(false);
@@ -24,6 +25,12 @@ export default function NicknameModal({ isOpen, onClose, onSuccess, targetSlot }
     const trimmed = nickname.trim();
     if (trimmed.length < 2 || trimmed.length > 24) {
       setError('A nicknévnek 2 és 24 karakter között kell lennie.');
+      return;
+    }
+
+    // Check if nickname is already occupied in this room
+    if (occupiedNicks.some((n) => n.toLowerCase() === trimmed.toLowerCase())) {
+      setError(`A(z) "${trimmed}" nicknév már foglalt ebben a szobában! Kérlek, válassz másikat.`);
       return;
     }
 
@@ -96,6 +103,23 @@ export default function NicknameModal({ isOpen, onClose, onSuccess, targetSlot }
               className="w-full px-4 py-3 rounded-xl bg-slate-800 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500 text-base"
               disabled={loading}
             />
+            {occupiedNicks.length > 0 && (
+              <div className="mt-2">
+                <span className="text-[11px] text-slate-400 font-semibold block mb-1">
+                  Már foglalt nicknevek ebben a szobában:
+                </span>
+                <div className="flex flex-wrap gap-1.5 max-h-20 overflow-y-auto">
+                  {occupiedNicks.map((nick) => (
+                    <span
+                      key={nick}
+                      className="px-2 py-0.5 rounded-full bg-slate-800 border border-slate-700 text-[11px] font-mono text-slate-300"
+                    >
+                      {nick}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="flex gap-3 justify-end">

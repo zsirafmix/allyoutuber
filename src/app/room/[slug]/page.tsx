@@ -326,6 +326,61 @@ export default function RoomPage() {
     });
   };
 
+  // Mod Set Role (Admin only)
+  const handleSetRole = (targetUserId: string, newRole: Role) => {
+    if (!roomData?.id || !sessionToken) return;
+    const socket = getSocket();
+    socket.emit('mod:set_role', {
+      roomId: roomData.id,
+      targetUserId,
+      newRole,
+      sessionToken,
+    });
+  };
+
+  // Mod Kick Member from Slot
+  const handleKickMember = (targetUserId: string) => {
+    if (!roomData?.id || !sessionToken) return;
+    const socket = getSocket();
+    socket.emit('mod:kick', {
+      roomId: roomData.id,
+      targetUserId,
+      sessionToken,
+    });
+  };
+
+  // Mod Mute / Unmute Member
+  const handleMuteMember = (targetUserId: string, isMuted: boolean) => {
+    if (!roomData?.id || !sessionToken) return;
+    const socket = getSocket();
+    socket.emit('mod:mute', {
+      roomId: roomData.id,
+      targetUserId,
+      isMuted,
+      sessionToken,
+    });
+  };
+
+  // Admin Delete Room
+  const handleDeleteRoom = async () => {
+    if (!roomData?.slug) return;
+    try {
+      const res = await fetch(`/api/rooms/${roomData.slug}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {}),
+        },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Szoba törlése sikertelen.');
+      alert('A szoba sikeresen törölve lett.');
+      router.push('/');
+    } catch (err: any) {
+      alert(err.message);
+    }
+  };
+
   // Mod Regenerate Invite
   const handleRegenerateInvite = async (): Promise<string> => {
     const res = await fetch(`/api/rooms/${slug}/invite`, {
@@ -510,6 +565,7 @@ export default function RoomPage() {
       <NicknameModal
         isOpen={showNickModal}
         targetSlot={targetClaimSlot}
+        occupiedNicks={members.map((m) => m.nickname)}
         onClose={() => {
           setShowNickModal(false);
           setTargetClaimSlot(null);
@@ -528,6 +584,10 @@ export default function RoomPage() {
         currentUserRole={currentUserRole}
         onSkipVideo={handleSkipVideo}
         onRegenerateInvite={handleRegenerateInvite}
+        onSetRole={handleSetRole}
+        onKickMember={handleKickMember}
+        onMuteMember={handleMuteMember}
+        onDeleteRoom={handleDeleteRoom}
       />
     </div>
   );

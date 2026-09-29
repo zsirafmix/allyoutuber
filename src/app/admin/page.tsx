@@ -17,6 +17,7 @@ import {
   UserCheck,
   LogOut,
   Sparkles,
+  Trash2,
 } from 'lucide-react';
 
 export default function AdminPage() {
@@ -35,13 +36,43 @@ export default function AdminPage() {
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [deletingRoomSlug, setDeletingRoomSlug] = useState<string | null>(null);
 
   // Dashboard metrics
   const [stats, setStats] = useState<{
     rooms: any[];
     usersCount: number;
+    users?: any[];
     recentLogs: any[];
   } | null>(null);
+
+  const handleDeleteRoom = async (slug: string, name: string) => {
+    if (!window.confirm(`Biztosan törölni szeretnéd a(z) "${name}" (/room/${slug}) szobát? A szoba és annak minden adata (várólista, csevegés) törlődik!`)) {
+      return;
+    }
+
+    setDeletingRoomSlug(slug);
+    try {
+      const token = localStorage.getItem('allyoutuber_token');
+      const res = await fetch(`/api/rooms/${slug}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'A szoba törlése sikertelen.');
+      }
+      alert('Szoba sikeresen törölve.');
+      await loadDashboard();
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setDeletingRoomSlug(null);
+    }
+  };
 
   const checkAuthStatus = async () => {
     try {
@@ -403,15 +434,95 @@ export default function AdminPage() {
                       <td className="py-2.5 px-3 font-semibold text-cyan-400">{r.settings?.djMode || 'AUTO'}</td>
                       <td className="py-2.5 px-3 font-semibold text-violet-400">{r.settings?.queueMode || 'FIFO'}</td>
                       <td className="py-2.5 px-3 text-right">
-                        <Link
-                          href={`/room/${r.slug}`}
-                          className="px-2.5 py-1 rounded-lg bg-violet-600/30 hover:bg-violet-600/50 text-violet-300 font-semibold"
-                        >
-                          Belépés
-                        </Link>
+                        <div className="flex items-center justify-end gap-2">
+                          <Link
+                            href={`/room/${r.slug}`}
+                            className="px-2.5 py-1 rounded-lg bg-violet-600/30 hover:bg-violet-600/50 text-violet-300 font-semibold"
+                          >
+                            Belépés
+                          </Link>
+                          <button
+                            onClick={() => handleDeleteRoom(r.slug, r.name)}
+                            disabled={deletingRoomSlug === r.slug}
+                            className="px-2 py-1 rounded-lg bg-rose-600/20 hover:bg-rose-600/40 text-rose-300 font-semibold flex items-center gap-1 transition disabled:opacity-50"
+                            title="Szoba törlése"
+                          >
+                            <Trash2 size={12} />
+                            <span>Törlés</span>
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Occupied Nicknames & Users Table */}
+          <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 shadow-xl space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-base font-bold text-white flex items-center gap-2">
+                <Users size={18} className="text-cyan-400" />
+                <span>Foglalt Nicknevek és Felhasználók ({stats?.users?.length || 0})</span>
+              </h2>
+              <span className="text-xs text-slate-400 font-medium">
+                Összesen {stats?.usersCount || 0} regisztrált felhasználó a rendszerben
+              </span>
+            </div>
+
+            <div className="overflow-x-auto max-h-80">
+              <table className="w-full text-left text-xs text-slate-300">
+                <thead className="sticky top-0 bg-slate-900 border-b border-slate-800 text-slate-400 font-bold uppercase text-[10px]">
+                  <tr>
+                    <th className="py-2.5 px-3">Foglalt Nicknév</th>
+                    <th className="py-2.5 px-3">Jogosultság</th>
+                    <th className="py-2.5 px-3">Létrehozva</th>
+                    <th className="py-2.5 px-3">Utolsó aktivitás</th>
+                    <th className="py-2.5 px-3">Felhasználó ID</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/60">
+                  {stats?.users && stats.users.length > 0 ? (
+                    stats.users.map((u: any) => (
+                      <tr key={u.id} className="hover:bg-slate-800/40">
+                        <td className="py-2 px-3 font-bold text-cyan-300 flex items-center gap-2">
+                          <span>{u.nickname}</span>
+                          {u.isGlobalAdmin && (
+                            <span className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 text-[10px] font-extrabold border border-amber-500/30">
+                              FŐADMIN
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-2 px-3">
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                              u.isGlobalAdmin
+                                ? 'bg-amber-500/20 text-amber-300'
+                                : 'bg-slate-800 text-slate-300'
+                            }`}
+                          >
+                            {u.isGlobalAdmin ? 'Örök Admin' : 'Felhasználó'}
+                          </span>
+                        </td>
+                        <td className="py-2 px-3 font-mono text-slate-400 text-[11px]">
+                          {new Date(u.createdAt).toLocaleString()}
+                        </td>
+                        <td className="py-2 px-3 font-mono text-slate-400 text-[11px]">
+                          {new Date(u.updatedAt).toLocaleString()}
+                        </td>
+                        <td className="py-2 px-3 font-mono text-slate-500 text-[10px]">
+                          {u.id}
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={5} className="py-4 text-center text-slate-500 italic">
+                        Még nincs megjeleníthető felhasználó.
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>

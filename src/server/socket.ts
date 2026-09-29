@@ -507,7 +507,154 @@ export function setupSocketIO(httpServer: HTTPServer) {
       }
     });
 
-    // 11. Disconnect
+    // 11. Change Member Role (Admin only)
+    socket.on('mod:set_role', async (data: { roomId: string; targetUserId: string; newRole: Role; sessionToken: string }) => {
+      try {
+        const { roomId, targetUserId, newRole, sessionToken } = data;
+        const session = await getSession(sessionToken);
+        if (!session) return;
+
+        const requester = await prisma.roomMember.findUnique({
+          where: { roomId_userId: { roomId, userId: session.userId } },
+        });
+
+        const isAuthorized = session.isGlobalAdmin || (requester && requester.role === Role.ADMIN);
+        if (!isAuthorized) {
+          socket.emit('error', { message: 'Csak szoba admin vagy globális admin nevezhet ki moderátort.' });
+          return;
+        }
+
+        const targetMember = await prisma.roomMember.findUnique({
+          where: { roomId_userId: { roomId, userId: targetUserId } },
+          include: { user: true },
+        });
+        if (!targetMember) {
+          socket.emit('error', { message: 'A felhasználó nem található a szobában.' });
+          return;
+        }
+
+        await prisma.roomMember.update({
+          where: { id: targetMember.id },
+          data: { role: newRole },
+        });
+
+        // Audit log
+        await prisma.auditLog.create({
+          data: {
+            roomId,
+            userId: session.userId,
+            userNick: session.nickname,
+            action: 'CHANGE_MEMBER_ROLE',
+            details: JSON.stringify({ targetNick: targetMember.user.nickname, targetUserId, newRole }),
+          },
+        });
+
+        // System message
+        await prisma.chatMessage.create({
+          data: {
+            roomId,
+            senderNick: 'System',
+            senderRole: Role.ADMIN,
+            message: `${session.nickname} megváltoztatta ${targetMember.user.nickname} rangját: ${newRole}.`,
+            isSystem: true,
+          },
+        });
+
+        await broadcastRoomState(roomId);
+      } catch (err: any) {
+        socket.emit('error', { message: err.message });
+      }
+    });
+
+    // 12. Kick user from slot (Mod/Admin)
+    socket.on('mod:kick', async (data: { roomId: string; targetUserId: string; sessionToken: string }) => {
+      try {
+        const { roomId, targetUserId, sessionToken } = data;
+        const session = await getSession(sessionToken);
+        if (!session) return;
+
+        const requester = await prisma.roomMember.findUnique({
+          where: { roomId_userId: { roomId, userId: session.userId } },
+        });
+
+        const isAuthorized = session.isGlobalAdmin || (requester && (requester.role === Role.ADMIN || requester.role === Role.MODERATOR));
+        if (!isAuthorized) {
+          socket.emit('error', { message: 'Nincs jogosultságod felhasználó kidobásához.' });
+          return;
+        }
+
+        const targetMember = await prisma.roomMember.findUnique({
+          where: { roomId_userId: { roomId, userId: targetUserId } },
+          include: { user: true },
+        });
+        if (!targetMember) return;
+
+        await prisma.roomMember.update({
+          where: { id: targetMember.id },
+          data: { slotIndex: null },
+        });
+
+        await prisma.chatMessage.create({
+          data: {
+            roomId,
+            senderNick: 'System',
+            senderRole: Role.MODERATOR,
+            message: `${session.nickname} felállította ${targetMember.user.nickname} felhasználót a helyéről.`,
+            isSystem: true,
+          },
+        });
+
+        await broadcastRoomState(roomId);
+      } catch (err: any) {
+        socket.emit('error', { message: err.message });
+      }
+    });
+
+    // 13. Mute / Unmute user (Mod/Admin)
+    socket.on('mod:mute', async (data: { roomId: string; targetUserId: string; isMuted: boolean; sessionToken: string }) => {
+      try {
+        const { roomId, targetUserId, isMuted, sessionToken } = data;
+        const session = await getSession(sessionToken);
+        if (!session) return;
+
+        const requester = await prisma.roomMember.findUnique({
+          where: { roomId_userId: { roomId, userId: session.userId } },
+        });
+
+        const isAuthorized = session.isGlobalAdmin || (requester && (requester.role === Role.ADMIN || requester.role === Role.MODERATOR));
+        if (!isAuthorized) {
+          socket.emit('error', { message: 'Nincs jogosultságod a némítás módosításához.' });
+          return;
+        }
+
+        const targetMember = await prisma.roomMember.findUnique({
+          where: { roomId_userId: { roomId, userId: targetUserId } },
+          include: { user: true },
+        });
+        if (!targetMember) return;
+
+        await prisma.roomMember.update({
+          where: { id: targetMember.id },
+          data: { isMuted },
+        });
+
+        await prisma.chatMessage.create({
+          data: {
+            roomId,
+            senderNick: 'System',
+            senderRole: Role.MODERATOR,
+            message: `${session.nickname} ${isMuted ? 'némította' : 'feloldotta a némítását'} ${targetMember.user.nickname} felhasználónak.`,
+            isSystem: true,
+          },
+        });
+
+        await broadcastRoomState(roomId);
+      } catch (err: any) {
+        socket.emit('error', { message: err.message });
+      }
+    });
+
+    // 14. Disconnect
     socket.on('disconnect', () => {
       const active = activeUsers.get(socket.id);
       if (active) {

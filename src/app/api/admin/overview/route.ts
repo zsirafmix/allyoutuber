@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Forbidden. Global admin access required.' }, { status: 403 });
     }
 
-    const [rooms, usersCount, recentLogs] = await Promise.all([
+    const [rooms, usersCount, users, recentLogs] = await Promise.all([
       prisma.room.findMany({
         include: {
           settings: true,
@@ -21,6 +21,17 @@ export async function GET(req: NextRequest) {
         orderBy: { createdAt: 'desc' },
       }),
       prisma.user.count(),
+      prisma.user.findMany({
+        select: {
+          id: true,
+          nickname: true,
+          isGlobalAdmin: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 100,
+      }),
       prisma.auditLog.findMany({
         take: 50,
         orderBy: { createdAt: 'desc' },
@@ -30,6 +41,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       rooms,
       usersCount,
+      users,
       recentLogs,
     });
   } catch (err: any) {
