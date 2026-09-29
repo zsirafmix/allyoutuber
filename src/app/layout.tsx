@@ -18,7 +18,18 @@ export default function RootLayout({
 }) {
   return (
     <html lang="hu" className="dark">
-      <body className="min-h-screen bg-slate-950 text-slate-100 flex flex-col selection:bg-violet-500 selection:text-white">
+      <body className="min-h-screen bg-slate-950 text-slate-100 flex flex-col selection:bg-violet-500 selection:text-white relative">
+        {/* Global Wallpaper Layer */}
+        <div className="fixed inset-0 -z-10 pointer-events-none overflow-hidden">
+          <div
+            className="absolute inset-0 bg-cover bg-center bg-no-repeat transition-opacity duration-700"
+            style={{ backgroundImage: `url('/background.jpg')` }}
+          />
+          {/* Subtle dark tint to preserve optimal contrast for cards, video and chat */}
+          <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-[1px]" />
+          <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-transparent to-slate-950/80" />
+        </div>
+
         <LanguageProvider>
           {/* Global Header */}
           <header className="sticky top-0 z-40 w-full border-b border-slate-800/80 bg-slate-950/80 backdrop-blur-xl">
