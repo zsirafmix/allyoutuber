@@ -12,6 +12,7 @@ interface Member {
   role: Role;
   slotIndex: number | null;
   lastActiveAt: string | Date;
+  isOnline?: boolean;
 }
 
 interface SlotsGridProps {
@@ -91,7 +92,14 @@ export default function SlotsGrid({
               >
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-xs font-black text-slate-500">#{slotNum}</span>
-                  <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" title="Online" />
+                  <div
+                    className={`w-2 h-2 rounded-full ${
+                      occupant.isOnline !== false
+                        ? 'bg-emerald-400 animate-pulse'
+                        : 'bg-amber-400'
+                    }`}
+                    title={occupant.isOnline !== false ? 'Online a szobában' : 'Lekapcsolódott (hely fenntartva)'}
+                  />
                 </div>
                 <div className="truncate font-bold text-xs sm:text-sm text-cyan-200" title={occupant.nickname}>
                   {occupant.nickname}

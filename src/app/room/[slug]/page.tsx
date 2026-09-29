@@ -10,6 +10,7 @@ import FloatingReactions from '@/components/FloatingReactions';
 import SlotsGrid from '@/components/SlotsGrid';
 import VideoQueue, { QueueItemData } from '@/components/VideoQueue';
 import RoomChat, { ChatMessageData } from '@/components/RoomChat';
+import RoomAudience, { Participant } from '@/components/RoomAudience';
 import ModeratorDrawer from '@/components/ModeratorDrawer';
 import NicknameModal from '@/components/NicknameModal';
 import { Role, RoomType, VideoSource, DJMode, QueueMode } from '@prisma/client';
@@ -93,6 +94,9 @@ export default function RoomPage() {
   const [queue, setQueue] = useState<QueueItemData[]>([]);
   const [members, setMembers] = useState<any[]>([]);
   const [chatMessages, setChatMessages] = useState<ChatMessageData[]>([]);
+  const [onlineCount, setOnlineCount] = useState<number>(1);
+  const [onlineUsers, setOnlineUsers] = useState<Participant[]>([]);
+  const [whisperRecipientId, setWhisperRecipientId] = useState<string | null>(null);
 
   // Modals & UI states
   const [loading, setLoading] = useState(true);
@@ -207,6 +211,14 @@ export default function RoomPage() {
       if (data.playback) setPlayback(data.playback);
       if (data.queue) setQueue(data.queue);
       if (data.members) setMembers(data.members);
+      if (data.onlineCount !== undefined) setOnlineCount(data.onlineCount);
+      if (data.onlineUsers !== undefined) setOnlineUsers(data.onlineUsers);
+    };
+
+    const handleCountChanged = ({ onlineCount: count }: { onlineCount: number }) => {
+      if (typeof count === 'number') {
+        setOnlineCount(count);
+      }
     };
 
     // 3. Chat History & Messages
@@ -229,13 +241,16 @@ export default function RoomPage() {
     };
 
     socket.on('room:state_update', handleStateUpdate);
+    socket.on('room:user_count_changed', handleCountChanged);
     socket.on('chat:history', handleChatHistory);
     socket.on('chat:message', handleChatMessage);
     socket.on('chat:deleted', handleChatDeleted);
     socket.on('room:access_denied', handleAccessDenied);
 
     return () => {
+      socket.emit('room:leave', { roomId: roomData.id });
       socket.off('room:state_update', handleStateUpdate);
+      socket.off('room:user_count_changed', handleCountChanged);
       socket.off('chat:history', handleChatHistory);
       socket.off('chat:message', handleChatMessage);
       socket.off('chat:deleted', handleChatDeleted);
@@ -476,7 +491,7 @@ export default function RoomPage() {
             <ArrowLeft size={18} />
           </Link>
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <h1 className="text-xl sm:text-2xl font-black text-white">{roomData.name}</h1>
               {roomData.type === RoomType.PRIVATE ? (
                 <span className="flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">
@@ -487,6 +502,14 @@ export default function RoomPage() {
                   <Globe size={10} /> {t('room.publicBadge')}
                 </span>
               )}
+              <span
+                className="flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 shadow-sm shadow-emerald-950/20"
+                title="Valós időben a szobában tartózkodó felhasználók"
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                <Users size={11} className="text-emerald-400" />
+                <span>{onlineCount} jelenlévő</span>
+              </span>
             </div>
             <p className="text-xs text-slate-400 font-mono mt-0.5">/room/{roomData.slug}</p>
           </div>
@@ -582,7 +605,7 @@ export default function RoomPage() {
         </div>
 
         {/* Right Column (Desktop 5 cols / Mobile Below) */}
-        <div className="lg:col-span-5 flex flex-col gap-5">
+        <div className="lg:col-span-5 flex flex-col gap-4">
           {/* 6. Numbered User Seats (1..10) */}
           <SlotsGrid
             slotCount={settings.slotCount || 10}
@@ -591,12 +614,32 @@ export default function RoomPage() {
             onClaimSlot={handleClaimSlot}
           />
 
+          {/* 6b. Room Audience & Active Participants List */}
+          <RoomAudience
+            onlineCount={onlineCount}
+            participants={
+              onlineUsers.length > 0
+                ? onlineUsers
+                : members.map((m) => ({
+                    userId: m.userId,
+                    nickname: m.nickname,
+                    role: m.role,
+                    slotIndex: m.slotIndex,
+                    isOnline: m.isOnline !== false,
+                  }))
+            }
+            currentUserId={currentUser?.id}
+            onSelectWhisper={(userId) => setWhisperRecipientId(userId)}
+          />
+
           {/* 7. Live Room Chat */}
           <RoomChat
             messages={chatMessages}
             currentUserRole={currentUserRole}
             currentUserId={currentUser?.id}
-            members={members}
+            members={onlineUsers.length > 0 ? onlineUsers : members}
+            selectedRecipientId={whisperRecipientId}
+            onSelectRecipient={setWhisperRecipientId}
             onSendMessage={handleSendMessage}
             onDeleteMessage={handleDeleteMessage}
           />

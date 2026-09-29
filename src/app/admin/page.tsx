@@ -626,6 +626,7 @@ export default function AdminPage() {
                     <th className="py-2.5 px-3">Slug</th>
                     <th className="py-2.5 px-3">Típus</th>
                     <th className="py-2.5 px-3">Helyek</th>
+                    <th className="py-2.5 px-3">Jelenlévők</th>
                     <th className="py-2.5 px-3">DJ Mód</th>
                     <th className="py-2.5 px-3">Queue Mód</th>
                     <th className="py-2.5 px-3 text-right">Művelet</th>
@@ -642,6 +643,12 @@ export default function AdminPage() {
                         </span>
                       </td>
                       <td className="py-2.5 px-3 font-mono">{r.settings?.slotCount || 10}</td>
+                      <td className="py-2.5 px-3">
+                        <span className="flex items-center gap-1.5 text-xs font-bold text-emerald-400">
+                          <span className={`w-1.5 h-1.5 rounded-full ${r.onlineCount > 0 ? 'bg-emerald-400 animate-pulse' : 'bg-slate-600'}`} />
+                          {r.onlineCount || 0} online
+                        </span>
+                      </td>
                       <td className="py-2.5 px-3 font-semibold text-cyan-400">{r.settings?.djMode || 'AUTO'}</td>
                       <td className="py-2.5 px-3 font-semibold text-violet-400">{r.settings?.queueMode || 'FIFO'}</td>
                       <td className="py-2.5 px-3 text-right">

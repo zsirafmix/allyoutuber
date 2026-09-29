@@ -9,6 +9,18 @@ import { checkAndRefillDJ } from '../lib/dj';
 import { castVote } from '../lib/vote';
 import { checkChatRateLimit, checkEmojiRateLimit, sanitizeText } from '../lib/rateLimit';
 import { Role, VideoSource, DJMode } from '@prisma/client';
+import {
+  registerSocket,
+  unregisterSocket,
+  updateSocketSlot,
+  updateUserSlotInRoom,
+  updateUserRoleInRoom,
+  updateUserNicknameInPresence,
+  getRoomOnlineCount,
+  getRoomParticipants,
+  getAllRoomCounts,
+  isUserOnlineInRoom,
+} from '../lib/presence';
 
 interface ConnectedUser {
   socketId: string;
@@ -79,6 +91,28 @@ export function setupSocketIO(httpServer: HTTPServer) {
     }
   }
 
+  // Helper to broadcast room counts to lobby and specific rooms
+  function broadcastCounts(roomId?: string) {
+    try {
+      const counts = getAllRoomCounts();
+      io.emit('rooms:counts_update', counts);
+      if (roomId) {
+        const count = getRoomOnlineCount(roomId);
+        io.to(`room:${roomId}`).emit('room:user_count_changed', {
+          roomId,
+          onlineCount: count,
+        });
+      }
+    } catch (err) {
+      console.error('Error broadcasting counts:', err);
+    }
+  }
+
+  // Periodic room counts sync to all connected clients every 5 seconds
+  setInterval(() => {
+    broadcastCounts();
+  }, 5000);
+
   // Broadcast full synchronized state to a room
   async function broadcastRoomState(roomId: string) {
     const room = await prisma.room.findUnique({
@@ -103,6 +137,9 @@ export function setupSocketIO(httpServer: HTTPServer) {
       currentPosition = Math.max(0, (Date.now() - new Date(room.playbackState.startedAt).getTime()) / 1000);
     }
 
+    const onlineCount = getRoomOnlineCount(roomId);
+    const onlineUsers = getRoomParticipants(roomId);
+
     io.to(`room:${roomId}`).emit('room:state_update', {
       room: {
         id: room.id,
@@ -125,6 +162,8 @@ export function setupSocketIO(httpServer: HTTPServer) {
         serverTime: Date.now(),
       },
       queue,
+      onlineCount,
+      onlineUsers,
       members: room.members.map((m) => ({
         id: m.id,
         userId: m.userId,
@@ -134,6 +173,7 @@ export function setupSocketIO(httpServer: HTTPServer) {
         isMuted: m.isMuted,
         canSubmit: m.canSubmit,
         isBanned: m.isBanned,
+        isOnline: isUserOnlineInRoom(roomId, m.userId),
         lastActiveAt: m.lastActiveAt,
       })),
     });
@@ -184,6 +224,14 @@ export function setupSocketIO(httpServer: HTTPServer) {
         const role = memberRecord?.role || access.role || Role.USER;
         const slotIndex = memberRecord?.slotIndex ?? null;
 
+        const { previousRoomId } = registerSocket(socket.id, {
+          userId,
+          nickname: userNick,
+          roomId,
+          role,
+          slotIndex,
+        });
+
         activeUsers.set(socket.id, {
           socketId: socket.id,
           userId,
@@ -192,6 +240,11 @@ export function setupSocketIO(httpServer: HTTPServer) {
           role,
           slotIndex,
         });
+
+        if (previousRoomId && previousRoomId !== roomId) {
+          await broadcastRoomState(previousRoomId);
+          broadcastCounts(previousRoomId);
+        }
 
         // Start room ticker if not running
         if (!roomClockIntervals.has(roomId)) {
@@ -216,8 +269,9 @@ export function setupSocketIO(httpServer: HTTPServer) {
 
         socket.emit('chat:history', recentChat.reverse());
 
-        // Broadcast updated room state
+        // Broadcast updated room state and live presence counts
         await broadcastRoomState(roomId);
+        broadcastCounts(roomId);
       } catch (err: any) {
         socket.emit('error', { message: err.message || 'Failed to join room.' });
       }
@@ -235,7 +289,9 @@ export function setupSocketIO(httpServer: HTTPServer) {
 
         const member = await claimSlot(roomId, session.userId, slotIndex);
 
-        // Update active user state
+        // Update active user state and presence
+        updateSocketSlot(socket.id, member.slotIndex, member.role, member.user.nickname);
+
         const active = activeUsers.get(socket.id);
         if (active) {
           active.role = member.role;
@@ -255,6 +311,7 @@ export function setupSocketIO(httpServer: HTTPServer) {
         });
 
         await broadcastRoomState(roomId);
+        broadcastCounts(roomId);
       } catch (err: any) {
         socket.emit('error', { message: err.message || 'Failed to claim seat.' });
       }
@@ -277,9 +334,16 @@ export function setupSocketIO(httpServer: HTTPServer) {
           active.nickname = updated.nickname;
         }
 
-        if (roomId) {
-          await broadcastRoomState(roomId);
+        const affectedRooms = updateUserNicknameInPresence(session.userId, updated.nickname);
+        if (roomId && !affectedRooms.includes(roomId)) {
+          affectedRooms.push(roomId);
         }
+
+        for (const rId of affectedRooms) {
+          await broadcastRoomState(rId);
+          broadcastCounts(rId);
+        }
+
         socket.emit('user:nickname_updated', { user: updated });
       } catch (err: any) {
         socket.emit('error', { message: err.message || 'Failed to update nickname.' });
@@ -632,6 +696,7 @@ export function setupSocketIO(httpServer: HTTPServer) {
         });
 
         await broadcastRoomState(roomId);
+        broadcastCounts(roomId);
       } catch (err: any) {
         socket.emit('error', { message: err.message });
       }
@@ -665,6 +730,14 @@ export function setupSocketIO(httpServer: HTTPServer) {
           data: { slotIndex: null },
         });
 
+        // Update presence and memory state
+        updateUserSlotInRoom(roomId, targetUserId, null);
+        for (const [sId, u] of activeUsers.entries()) {
+          if (u.roomId === roomId && u.userId === targetUserId) {
+            u.slotIndex = null;
+          }
+        }
+
         await prisma.chatMessage.create({
           data: {
             roomId,
@@ -676,6 +749,7 @@ export function setupSocketIO(httpServer: HTTPServer) {
         });
 
         await broadcastRoomState(roomId);
+        broadcastCounts(roomId);
       } catch (err: any) {
         socket.emit('error', { message: err.message });
       }
@@ -725,12 +799,31 @@ export function setupSocketIO(httpServer: HTTPServer) {
       }
     });
 
-    // 14. Disconnect
-    socket.on('disconnect', () => {
+    // Leave Room
+    socket.on('room:leave', async (data: { roomId: string }) => {
+      try {
+        const { roomId } = data;
+        socket.leave(`room:${roomId}`);
+        activeUsers.delete(socket.id);
+        unregisterSocket(socket.id);
+        await broadcastRoomState(roomId);
+        broadcastCounts(roomId);
+      } catch (err) {
+        console.error('Error leaving room:', err);
+      }
+    });
+
+    // 14. Disconnect (instant state update and count broadcast)
+    socket.on('disconnect', async () => {
       const active = activeUsers.get(socket.id);
       if (active) {
         activeUsers.delete(socket.id);
-        // Note: Slot is retained for grace period (5 mins) in database
+      }
+      const unregistered = unregisterSocket(socket.id);
+      const roomId = active?.roomId || unregistered?.roomId;
+      if (roomId) {
+        await broadcastRoomState(roomId);
+        broadcastCounts(roomId);
       }
     });
   });

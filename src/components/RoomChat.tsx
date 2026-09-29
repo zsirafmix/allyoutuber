@@ -23,7 +23,9 @@ interface RoomChatProps {
   messages: ChatMessageData[];
   currentUserRole?: Role | null;
   currentUserId?: string | null;
-  members?: Array<{ id: string; userId: string; nickname: string; role: Role }>;
+  members?: Array<{ id?: string; userId: string; nickname: string; role: Role }>;
+  selectedRecipientId?: string | null;
+  onSelectRecipient?: (userId: string | null) => void;
   onSendMessage: (msg: string, recipientUserId?: string) => void;
   onDeleteMessage?: (msgId: string) => void;
 }
@@ -33,12 +35,19 @@ export default function RoomChat({
   currentUserRole,
   currentUserId,
   members = [],
+  selectedRecipientId: controlledRecipientId,
+  onSelectRecipient,
   onSendMessage,
   onDeleteMessage,
 }: RoomChatProps) {
   const { t } = useLanguage();
   const [text, setText] = useState('');
-  const [selectedRecipientId, setSelectedRecipientId] = useState<string | null>(null);
+  const [internalRecipientId, setInternalRecipientId] = useState<string | null>(null);
+  const selectedRecipientId = controlledRecipientId !== undefined ? controlledRecipientId : internalRecipientId;
+  const setSelectedRecipientId = (id: string | null) => {
+    setInternalRecipientId(id);
+    onSelectRecipient?.(id);
+  };
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const isModOrAdmin = currentUserRole === Role.MODERATOR || currentUserRole === Role.ADMIN;
 

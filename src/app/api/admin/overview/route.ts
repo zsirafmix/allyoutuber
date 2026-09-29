@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getSession } from '@/lib/session';
 import { lookupGeoIp, parseUserAgent } from '@/lib/geoIp';
+import { getRoomOnlineCount } from '@/lib/presence';
 
 export async function GET(req: NextRequest) {
   try {
@@ -112,8 +113,13 @@ export async function GET(req: NextRequest) {
       })
     );
 
+    const enrichedRooms = rooms.map((r) => ({
+      ...r,
+      onlineCount: getRoomOnlineCount(r.id),
+    }));
+
     return NextResponse.json({
-      rooms,
+      rooms: enrichedRooms,
       usersCount,
       users,
       recentLogs: logs,

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useLanguage } from '@/lib/i18n';
 import NicknameModal from '@/components/NicknameModal';
+import { getSocket } from '@/lib/socketClient';
 import {
   Users,
   Plus,
@@ -96,8 +97,24 @@ export default function HomePage() {
 
   useEffect(() => {
     fetchRooms();
-    const interval = setInterval(fetchRooms, 6000);
-    return () => clearInterval(interval);
+    const interval = setInterval(fetchRooms, 3000);
+
+    const socket = getSocket();
+    const handleCountsUpdate = (counts: Record<string, number>) => {
+      if (!counts) return;
+      setRooms((prev) =>
+        prev.map((r) =>
+          counts[r.id] !== undefined ? { ...r, activeCount: counts[r.id] } : r
+        )
+      );
+    };
+
+    socket.on('rooms:counts_update', handleCountsUpdate);
+
+    return () => {
+      clearInterval(interval);
+      socket.off('rooms:counts_update', handleCountsUpdate);
+    };
   }, []);
 
   const handleStartCreateRoom = () => {

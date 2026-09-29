@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { createRoom } from '@/lib/room';
 import { getSession } from '@/lib/session';
+import { getRoomOnlineCount } from '@/lib/presence';
 import { RoomType } from '@prisma/client';
 
 export async function GET() {
@@ -30,9 +31,13 @@ export async function GET() {
     });
 
     const formatted = publicRooms.map((r) => {
-      const activeMembersCount = r.members.filter(
-        (m) => m.slotIndex !== null && Date.now() - new Date(m.lastActiveAt).getTime() < 5 * 60 * 1000
-      ).length;
+      const liveCount = getRoomOnlineCount(r.id);
+      const dbActiveCount = new Set(
+        r.members
+          .filter((m) => Date.now() - new Date(m.lastActiveAt).getTime() < 2 * 60 * 1000)
+          .map((m) => m.userId)
+      ).size;
+      const activeMembersCount = liveCount > 0 ? liveCount : dbActiveCount;
 
       return {
         id: r.id,
