@@ -45,6 +45,41 @@ export default function HomePage() {
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
 
+  const [currentUser, setCurrentUser] = useState<{ id: string; nickname: string; isGlobalAdmin: boolean } | null>(null);
+
+  const loadUser = async () => {
+    const userStr = localStorage.getItem('allyoutuber_user');
+    const token = localStorage.getItem('allyoutuber_token');
+    if (userStr) {
+      try {
+        setCurrentUser(JSON.parse(userStr));
+      } catch {}
+    }
+    if (token) {
+      try {
+        const res = await fetch('/api/session', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json();
+        if (data.session) {
+          const u = {
+            id: data.session.userId,
+            nickname: data.session.nickname,
+            isGlobalAdmin: data.session.isGlobalAdmin,
+          };
+          setCurrentUser(u);
+          localStorage.setItem('allyoutuber_user', JSON.stringify(u));
+        }
+      } catch {}
+    }
+  };
+
+  useEffect(() => {
+    loadUser();
+    window.addEventListener('allyoutuber:session_updated', loadUser);
+    return () => window.removeEventListener('allyoutuber:session_updated', loadUser);
+  }, []);
+
   const fetchRooms = async () => {
     try {
       const res = await fetch('/api/rooms');
@@ -121,10 +156,17 @@ export default function HomePage() {
         <div className="absolute bottom-0 left-0 -ml-16 -mb-16 w-80 h-80 rounded-full bg-cyan-600/10 blur-3xl pointer-events-none" />
 
         <div className="relative z-10 max-w-2xl">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-violet-900/50 border border-violet-700/50 text-violet-300 text-xs font-semibold mb-4">
-            <Sparkles size={14} />
-            <span>Közösségi Zenehallgatás & Videónézés</span>
-          </div>
+          {currentUser ? (
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-950/60 border border-emerald-700/50 text-emerald-300 text-xs font-semibold mb-4">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span>Üdvözlünk újra, <strong>{currentUser.nickname}</strong>!</span>
+            </div>
+          ) : (
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-violet-900/50 border border-violet-700/50 text-violet-300 text-xs font-semibold mb-4">
+              <Sparkles size={14} />
+              <span>Közösségi Zenehallgatás & Videónézés</span>
+            </div>
+          )}
 
           <h1 className="text-3xl sm:text-5xl font-black text-white tracking-tight leading-tight">
             Hallgassátok és nézzétek <span className="bg-gradient-to-r from-violet-400 via-pink-400 to-cyan-400 bg-clip-text text-transparent">együtt</span>, valós időben!
@@ -134,7 +176,7 @@ export default function HomePage() {
             {t('app.tagline')} Csatlakozz meglévő publikus szobákhoz, foglalj el egy interaktív helyet a számozott gombokkal, küldj be YouTube linkeket, szavazz és beszélgess a többiekkel!
           </p>
 
-          <div className="mt-8 flex flex-wrap gap-4">
+          <div className="mt-8 flex flex-wrap items-center gap-4">
             <button
               onClick={handleStartCreateRoom}
               className="flex items-center gap-2 px-6 py-3.5 rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-bold shadow-xl shadow-violet-600/30 transition transform active:scale-95"
@@ -142,6 +184,15 @@ export default function HomePage() {
               <Plus size={18} />
               <span>{t('app.createRoom')}</span>
             </button>
+
+            {!currentUser && (
+              <button
+                onClick={() => setShowNickModal(true)}
+                className="px-5 py-3 rounded-2xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 text-sm font-semibold transition"
+              >
+                Nicknév megadása
+              </button>
+            )}
           </div>
         </div>
       </section>

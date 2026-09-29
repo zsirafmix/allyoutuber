@@ -41,15 +41,35 @@ export async function createSessionForNickname(
     throw new Error('Nickname must be at least 2 characters long.');
   }
 
-  // Create new user or find existing if matching session is not found
-  const user = await prisma.user.create({
-    data: {
-      nickname: sanitizedNick,
+  // Find existing user with this nickname (case-insensitive) to remember user identity
+  let user = await prisma.user.findFirst({
+    where: {
+      nickname: {
+        equals: sanitizedNick,
+        mode: 'insensitive',
+      },
     },
   });
 
+  if (user) {
+    // Existing user found! Update timestamp and maintain identity
+    user = await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        nickname: sanitizedNick,
+        updatedAt: new Date(),
+      },
+    });
+  } else {
+    user = await prisma.user.create({
+      data: {
+        nickname: sanitizedNick,
+      },
+    });
+  }
+
   const sessionToken = generateToken();
-  const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
+  const expiresAt = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000); // 60 days persistent login
 
   await prisma.userSession.create({
     data: {

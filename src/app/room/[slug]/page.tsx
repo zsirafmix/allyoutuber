@@ -102,9 +102,9 @@ export default function RoomPage() {
   const [targetClaimSlot, setTargetClaimSlot] = useState<number | null>(null);
   const [inviteCopied, setInviteCopied] = useState(false);
 
-  // Load session from localStorage
-  useEffect(() => {
-    const token = localStorage.getItem('allyoutuber_token');
+  // Load and verify persistent session
+  const loadSession = useCallback(async () => {
+    let token = localStorage.getItem('allyoutuber_token');
     const userStr = localStorage.getItem('allyoutuber_user');
     if (token && userStr) {
       try {
@@ -112,7 +112,34 @@ export default function RoomPage() {
         setCurrentUser(JSON.parse(userStr));
       } catch {}
     }
+
+    try {
+      const res = await fetch('/api/session', {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      const data = await res.json();
+      if (data.session) {
+        setSessionToken(data.session.sessionToken);
+        const u = {
+          id: data.session.userId,
+          nickname: data.session.nickname,
+          isGlobalAdmin: data.session.isGlobalAdmin,
+        };
+        setCurrentUser(u);
+        localStorage.setItem('allyoutuber_token', data.session.sessionToken);
+        localStorage.setItem('allyoutuber_user', JSON.stringify(u));
+        localStorage.setItem('allyoutuber_saved_nick', data.session.nickname);
+      }
+    } catch (e) {
+      console.error('Session sync error:', e);
+    }
   }, []);
+
+  useEffect(() => {
+    loadSession();
+    window.addEventListener('allyoutuber:session_updated', loadSession);
+    return () => window.removeEventListener('allyoutuber:session_updated', loadSession);
+  }, [loadSession]);
 
   // Fetch initial room data from API
   useEffect(() => {

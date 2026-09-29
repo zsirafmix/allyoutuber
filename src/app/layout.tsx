@@ -2,6 +2,7 @@ import './globals.css';
 import type { Metadata } from 'next';
 import { LanguageProvider } from '@/lib/i18n';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
+import UserHeaderBadge from '@/components/UserHeaderBadge';
 import Link from 'next/link';
 import { Radio, Shield } from 'lucide-react';
 
@@ -39,6 +40,8 @@ export default function RootLayout({
 
               {/* Header Right Tools */}
               <div className="flex items-center gap-2 sm:gap-3">
+                <UserHeaderBadge />
+
                 <Link
                   href="/admin"
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 text-xs font-semibold text-slate-300 transition"

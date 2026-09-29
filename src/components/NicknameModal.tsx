@@ -18,6 +18,15 @@ export default function NicknameModal({ isOpen, onClose, onSuccess, targetSlot, 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  React.useEffect(() => {
+    if (isOpen) {
+      const saved = localStorage.getItem('allyoutuber_saved_nick');
+      if (saved && !nickname) {
+        setNickname(saved);
+      }
+    }
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -51,6 +60,8 @@ export default function NicknameModal({ isOpen, onClose, onSuccess, targetSlot, 
 
       localStorage.setItem('allyoutuber_token', data.sessionToken);
       localStorage.setItem('allyoutuber_user', JSON.stringify(data.user));
+      localStorage.setItem('allyoutuber_saved_nick', trimmed);
+      window.dispatchEvent(new CustomEvent('allyoutuber:session_updated', { detail: data }));
 
       onSuccess(data);
       onClose();

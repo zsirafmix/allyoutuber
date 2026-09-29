@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
       httpOnly: false,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: 30 * 24 * 60 * 60,
+      maxAge: 60 * 24 * 60 * 60,
       path: '/',
     });
 
@@ -43,6 +43,24 @@ export async function GET(req: NextRequest) {
 
     const session = await getSession(token);
     return NextResponse.json({ session });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const authHeader = req.headers.get('authorization');
+    const tokenFromHeader = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : null;
+    const tokenFromCookie = req.cookies.get('allyoutuber_token')?.value;
+    const token = tokenFromHeader || tokenFromCookie;
+
+    const res = NextResponse.json({ success: true, message: 'Kijelentkezve.' });
+    res.cookies.set('allyoutuber_token', '', {
+      maxAge: 0,
+      path: '/',
+    });
+    return res;
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
