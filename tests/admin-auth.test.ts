@@ -9,12 +9,24 @@ import { updateUserNickname, getSession } from '../src/lib/session';
 
 describe('Permanent Master Admin & Password System', () => {
   beforeAll(async () => {
-    // Clear any previous master admin config for test isolation
+    // Clear any previous master admin config and test users for test isolation
     await prisma.appSettings.deleteMany({ where: { key: 'master_admin_config' } });
+    await prisma.userSession.deleteMany({
+      where: { user: { nickname: { in: ['ZsirafMaster', 'ZsirafTheBoss', 'Attacker'] } } },
+    });
+    await prisma.user.deleteMany({
+      where: { nickname: { in: ['ZsirafMaster', 'ZsirafTheBoss', 'Attacker'] } },
+    });
   });
 
   afterAll(async () => {
     await prisma.appSettings.deleteMany({ where: { key: 'master_admin_config' } });
+    await prisma.userSession.deleteMany({
+      where: { user: { nickname: { in: ['ZsirafMaster', 'ZsirafTheBoss', 'Attacker'] } } },
+    });
+    await prisma.user.deleteMany({
+      where: { nickname: { in: ['ZsirafMaster', 'ZsirafTheBoss', 'Attacker'] } },
+    });
   });
 
   it('detects uninitialized admin on first run', async () => {

@@ -6,13 +6,27 @@ describe('User Persistence & Identity Memory', () => {
   const testNick = 'PersistentDJ';
   let firstUserId: string;
 
-  afterAll(async () => {
+  const cleanup = async () => {
     await prisma.userSession.deleteMany({
-      where: { user: { nickname: { equals: testNick, mode: 'insensitive' } } },
+      where: {
+        user: {
+          nickname: { in: ['PersistentDJ', 'persistentdj', 'RenamedDJ', 'OtherDJ'], mode: 'insensitive' },
+        },
+      },
     });
     await prisma.user.deleteMany({
-      where: { nickname: { equals: testNick, mode: 'insensitive' } },
+      where: {
+        nickname: { in: ['PersistentDJ', 'persistentdj', 'RenamedDJ', 'OtherDJ'], mode: 'insensitive' },
+      },
     });
+  };
+
+  beforeAll(async () => {
+    await cleanup();
+  });
+
+  afterAll(async () => {
+    await cleanup();
   });
 
   it('creates user on first nickname registration', async () => {

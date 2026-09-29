@@ -155,7 +155,12 @@ export function setupSocketIO(httpServer: HTTPServer) {
           return;
         }
 
-        let userSession = sessionToken ? await getSession(sessionToken) : null;
+        const clientIp = ((socket.handshake.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim()) ||
+          (socket.handshake.headers['x-real-ip'] as string)?.trim() ||
+          socket.handshake.address ||
+          '127.0.0.1';
+        const userAgent = (socket.handshake.headers['user-agent'] as string) || undefined;
+        let userSession = sessionToken ? await getSession(sessionToken, userAgent, clientIp) : null;
         const userId = userSession ? userSession.userId : `guest-${socket.id.slice(0, 6)}`;
         const userNick = userSession ? userSession.nickname : `Guest ${socket.id.slice(0, 4)}`;
 

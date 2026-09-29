@@ -87,7 +87,11 @@ export async function createSessionForNickname(
 /**
  * Resolves session from a token.
  */
-export async function getSession(sessionToken: string): Promise<AuthSession | null> {
+export async function getSession(
+  sessionToken: string,
+  userAgent?: string,
+  ipAddress?: string
+): Promise<AuthSession | null> {
   if (!sessionToken) return null;
 
   const session = await prisma.userSession.findUnique({
@@ -99,10 +103,18 @@ export async function getSession(sessionToken: string): Promise<AuthSession | nu
     return null;
   }
 
-  // Update last seen
+  // Update last seen, IP, and userAgent
+  const updateData: any = { lastSeenAt: new Date() };
+  if (ipAddress && (!session.ipAddress || session.ipAddress !== ipAddress)) {
+    updateData.ipAddress = ipAddress;
+  }
+  if (userAgent && (!session.userAgent || session.userAgent !== userAgent)) {
+    updateData.userAgent = userAgent;
+  }
+
   await prisma.userSession.update({
     where: { id: session.id },
-    data: { lastSeenAt: new Date() },
+    data: updateData,
   });
 
   return {

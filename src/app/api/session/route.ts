@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSessionForNickname, getSession, updateUserNickname } from '@/lib/session';
+import { getClientIp } from '@/lib/geoIp';
 
 export async function POST(req: NextRequest) {
   try {
@@ -11,7 +12,7 @@ export async function POST(req: NextRequest) {
     }
 
     const userAgent = req.headers.get('user-agent') || undefined;
-    const ipAddress = req.headers.get('x-forwarded-for') || undefined;
+    const ipAddress = getClientIp(req);
 
     const { sessionToken, user } = await createSessionForNickname(nickname, userAgent, ipAddress);
 
@@ -41,7 +42,10 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ session: null });
     }
 
-    const session = await getSession(token);
+    const userAgent = req.headers.get('user-agent') || undefined;
+    const ipAddress = getClientIp(req);
+
+    const session = await getSession(token, userAgent, ipAddress);
     return NextResponse.json({ session });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
@@ -77,7 +81,9 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: 'Nincs érvényes munkamenet azonosító.' }, { status: 401 });
     }
 
-    const session = await getSession(token);
+    const userAgent = req.headers.get('user-agent') || undefined;
+    const ipAddress = getClientIp(req);
+    const session = await getSession(token, userAgent, ipAddress);
     if (!session) {
       return NextResponse.json({ error: 'Érvénytelen vagy lejárt munkamenet.' }, { status: 401 });
     }
