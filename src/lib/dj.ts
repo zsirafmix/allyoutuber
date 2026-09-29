@@ -2,6 +2,7 @@ import prisma from './prisma';
 import { DJMode, VideoSource } from '@prisma/client';
 import { addToQueue } from './queue';
 import { getYouTubeMetadata } from './youtube';
+import { getDJStyle } from './djStyles';
 
 const GLOBAL_DEFAULT_DJ_IDS = [
   'fJ9rUzIMcZQ', // Queen - Bohemian Rhapsody
@@ -30,7 +31,7 @@ export async function checkAndRefillDJ(roomId: string) {
   });
 
   if (!room || !room.settings) return null;
-  const { djMode, djMinimumQueueLength, djRepeatProtectionCount, djPlaylist } = room.settings;
+  const { djMode, djMinimumQueueLength, djRepeatProtectionCount, djPlaylist, djStyle } = room.settings;
 
   if (djMode === DJMode.OFF) {
     return null;
@@ -59,7 +60,12 @@ export async function checkAndRefillDJ(roomId: string) {
   }
 
   if (candidates.length === 0) {
-    candidates = [...GLOBAL_DEFAULT_DJ_IDS];
+    const styleObj = getDJStyle(djStyle);
+    if (styleObj && styleObj.tracks.length > 0) {
+      candidates = [...styleObj.tracks];
+    } else {
+      candidates = [...GLOBAL_DEFAULT_DJ_IDS];
+    }
   }
 
   // 2. Repeat protection: fetch last N played videos in this room

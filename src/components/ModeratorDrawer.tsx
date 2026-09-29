@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { useLanguage } from '@/lib/i18n';
 import { DJMode, QueueMode, Role, RoomType } from '@prisma/client';
+import { getDJStyle, DJ_STYLE_LIST } from '@/lib/djStyles';
 import {
   ShieldAlert,
   FastForward,
@@ -38,6 +39,7 @@ interface ModeratorDrawerProps {
     maxConsecutiveVideosPerUser: number;
     maxQueuedVideosPerUser: number;
     maxVideoDurationMinutes: number;
+    djStyle?: string;
   };
   members: Array<{
     id: string;
@@ -52,6 +54,7 @@ interface ModeratorDrawerProps {
   onSkipVideo: () => void;
   onRegenerateInvite: () => Promise<string>;
   onUpdateSettings?: (newSettings: any) => void;
+  onSetDJStyle?: (newStyle: string) => void;
   onSetRole?: (targetUserId: string, newRole: Role) => void;
   onKickMember?: (targetUserId: string) => void;
   onMuteMember?: (targetUserId: string, isMuted: boolean) => void;
@@ -68,6 +71,7 @@ export default function ModeratorDrawer({
   currentUserRole,
   onSkipVideo,
   onRegenerateInvite,
+  onSetDJStyle,
   onSetRole,
   onKickMember,
   onMuteMember,
@@ -79,6 +83,7 @@ export default function ModeratorDrawer({
   const [isRegenerating, setIsRegenerating] = useState(false);
 
   const isAdmin = currentUserRole === Role.ADMIN;
+  const isModOrAdmin = isAdmin || currentUserRole === Role.MODERATOR;
 
   if (!isOpen) return null;
 
@@ -176,6 +181,34 @@ export default function ModeratorDrawer({
               <span className="text-slate-400">{t('mod.djMode')}:</span>
               <span className="font-semibold text-cyan-400">{settings.djMode}</span>
             </div>
+            <div className="flex justify-between text-xs text-slate-300">
+              <span className="text-slate-400">DJ Zenei Stílus:</span>
+              {(() => {
+                const curStyle = getDJStyle(settings.djStyle);
+                return (
+                  <span className="font-semibold text-amber-300 flex items-center gap-1">
+                    <span>{curStyle.emoji}</span>
+                    <span>{curStyle.name}</span>
+                  </span>
+                );
+              })()}
+            </div>
+            {isModOrAdmin && onSetDJStyle && (
+              <div className="pt-2 pb-1 border-t border-slate-700/50 space-y-1">
+                <span className="text-[11px] font-semibold text-slate-400">DJ Stílus váltása:</span>
+                <select
+                  value={settings.djStyle || 'MIXED_PARTY'}
+                  onChange={(e) => onSetDJStyle(e.target.value)}
+                  className="w-full px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-xs font-bold text-white focus:outline-none focus:ring-1 focus:ring-violet-500"
+                >
+                  {DJ_STYLE_LIST.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.emoji} {s.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div className="flex justify-between text-xs text-slate-300">
               <span className="text-slate-400">{t('queue.mode')}:</span>
               <span className="font-semibold text-violet-400">{settings.queueMode}</span>

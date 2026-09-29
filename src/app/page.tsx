@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useLanguage } from '@/lib/i18n';
 import NicknameModal from '@/components/NicknameModal';
 import { getSocket } from '@/lib/socketClient';
+import { getDJStyle, DJ_STYLE_LIST } from '@/lib/djStyles';
 import {
   Users,
   Plus,
@@ -25,6 +26,7 @@ interface RoomCard {
   type: 'PUBLIC' | 'PRIVATE';
   isLocked: boolean;
   slotCount: number;
+  djStyle?: string;
   activeCount: number;
   nowPlaying: string | null;
   thumbnail: string | null;
@@ -43,6 +45,7 @@ export default function HomePage() {
   const [roomName, setRoomName] = useState('');
   const [roomType, setRoomType] = useState<'PUBLIC' | 'PRIVATE'>('PUBLIC');
   const [slotCount, setSlotCount] = useState(10);
+  const [djStyle, setDjStyle] = useState('MIXED_PARTY');
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
 
@@ -145,6 +148,7 @@ export default function HomePage() {
           name: roomName.trim(),
           type: roomType,
           slotCount,
+          djStyle,
         }),
       });
 
@@ -250,9 +254,23 @@ export default function HomePage() {
               >
                 <div>
                   <div className="flex items-center justify-between mb-3">
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-violet-950/80 border border-violet-800/60 text-violet-300">
-                      <Globe size={12} /> {room.type}
-                    </span>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-violet-950/80 border border-violet-800/60 text-violet-300">
+                        <Globe size={12} /> {room.type}
+                      </span>
+                      {room.djStyle && (() => {
+                        const style = getDJStyle(room.djStyle);
+                        return (
+                          <span
+                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold ${style.badgeBg} ${style.badgeText} border ${style.badgeBorder}`}
+                            title={`DJ Stílus: ${style.name}`}
+                          >
+                            <span>{style.emoji}</span>
+                            <span>{style.name}</span>
+                          </span>
+                        );
+                      })()}
+                    </div>
                     <span className="flex items-center gap-1 text-xs text-slate-400 font-mono">
                       <Users size={12} /> {room.activeCount} / {room.slotCount}
                     </span>
@@ -378,6 +396,41 @@ export default function HomePage() {
                   <option value={15}>15 hely</option>
                   <option value={20}>20 hely</option>
                 </select>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-xs font-semibold text-slate-300">
+                    DJ Zenei Stílus (Automatikus háttérzene)
+                  </label>
+                  <span className="text-[11px] text-violet-400 font-bold flex items-center gap-1">
+                    <span>{getDJStyle(djStyle).emoji}</span>
+                    <span>{getDJStyle(djStyle).name}</span>
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-2 max-h-44 overflow-y-auto pr-1">
+                  {DJ_STYLE_LIST.map((style) => {
+                    const isSelected = djStyle === style.id;
+                    return (
+                      <button
+                        key={style.id}
+                        type="button"
+                        onClick={() => setDjStyle(style.id)}
+                        className={`p-2.5 rounded-xl border text-left transition flex items-center gap-2.5 ${
+                          isSelected
+                            ? 'bg-violet-600/30 border-violet-500 ring-1 ring-violet-500 text-white'
+                            : 'bg-slate-800/60 border-slate-700/70 hover:bg-slate-800 text-slate-300'
+                        }`}
+                      >
+                        <span className="text-xl shrink-0">{style.emoji}</span>
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold truncate leading-tight">{style.name}</p>
+                          <p className="text-[10px] text-slate-400 truncate mt-0.5">{style.description}</p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
               <div className="flex gap-3 justify-end pt-3">

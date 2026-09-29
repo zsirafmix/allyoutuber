@@ -46,6 +46,7 @@ export async function GET() {
         type: r.type,
         isLocked: r.isLocked,
         slotCount: r.settings?.slotCount || 10,
+        djStyle: r.settings?.djStyle || 'MIXED_PARTY',
         activeCount: activeMembersCount,
         nowPlaying: r.playbackState?.currentTitle || null,
         thumbnail: r.playbackState?.currentThumbnail || null,
@@ -71,7 +72,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { name, slug, type = 'PUBLIC', slotCount = 10 } = body;
+    const { name, slug, type = 'PUBLIC', slotCount = 10, djStyle = 'MIXED_PARTY' } = body;
 
     if (!name || name.trim().length < 2) {
       return NextResponse.json({ error: 'Room name must be at least 2 characters.' }, { status: 400 });
@@ -84,6 +85,7 @@ export async function POST(req: NextRequest) {
       type: roomType,
       slotCount: Number(slotCount),
       userId: session.userId,
+      djStyle,
     });
 
     return NextResponse.json({ room, inviteCode });

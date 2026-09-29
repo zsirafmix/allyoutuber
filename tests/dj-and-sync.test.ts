@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import prisma from '../src/lib/prisma';
 import { createRoom } from '../src/lib/room';
 import { checkAndRefillDJ } from '../src/lib/dj';
+import { getDJStyle } from '../src/lib/djStyles';
 import { DJMode, RoomType, VideoSource } from '@prisma/client';
 
 describe('Automated DJ Engine & Repeat Protection', () => {
@@ -95,5 +96,45 @@ describe('Automated DJ Engine & Repeat Protection', () => {
     // DJ must pick candidateB because candidateA was just played!
     const djItem = await checkAndRefillDJ(roomId);
     expect(djItem?.videoId).toBe(candidateB);
+  });
+
+  it('correctly creates a room with custom DJ style and populates curated playlist', async () => {
+    const rockRoom = await createRoom({
+      name: 'Rock Heavy Room',
+      type: RoomType.PUBLIC,
+      userId: adminUser.id,
+      djStyle: 'ROCK_NIGHT',
+    });
+
+    expect(rockRoom.room.settings?.djStyle).toBe('ROCK_NIGHT');
+    const parsedPlaylist = JSON.parse(rockRoom.room.settings?.djPlaylist || '[]');
+    expect(parsedPlaylist.length).toBeGreaterThan(0);
+    expect(parsedPlaylist).toContain('fJ9rUzIMcZQ'); // Queen - Bohemian Rhapsody
+
+    // Clean up
+    await prisma.room.delete({ where: { id: rockRoom.room.id } });
+  });
+
+  it('verifies all 10 requested DJ styles are defined with valid tracks and labels', () => {
+    const expectedStyles = [
+      { id: 'ROCK_NIGHT', emoji: '🎸', name: 'Rock Night' },
+      { id: 'METAL_ZONE', emoji: '🔥', name: 'Metal Zone' },
+      { id: 'EDM_PARTY', emoji: '🎧', name: 'EDM Party' },
+      { id: 'RAP_ARENA', emoji: '🎤', name: 'Rap Arena' },
+      { id: 'LATIN_FIESTA', emoji: '💃', name: 'Latin Fiesta' },
+      { id: 'JAZZ_LOUNGE', emoji: '🎷', name: 'Jazz Lounge' },
+      { id: 'CHILL_LOFI', emoji: '🌙', name: 'Chill / Lo-Fi' },
+      { id: 'CLASSIC_ROOM', emoji: '🎼', name: 'Classic Room' },
+      { id: 'COUNTRY_BAR', emoji: '🤠', name: 'Country Bar' },
+      { id: 'MIXED_PARTY', emoji: '⭐', name: 'Mixed Party' },
+    ];
+
+    for (const exp of expectedStyles) {
+      const style = getDJStyle(exp.id);
+      expect(style.id).toBe(exp.id);
+      expect(style.emoji).toBe(exp.emoji);
+      expect(style.name).toBe(exp.name);
+      expect(style.tracks.length).toBeGreaterThan(0);
+    }
   });
 });

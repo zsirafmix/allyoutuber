@@ -13,6 +13,7 @@ import RoomChat, { ChatMessageData } from '@/components/RoomChat';
 import RoomAudience, { Participant } from '@/components/RoomAudience';
 import ModeratorDrawer from '@/components/ModeratorDrawer';
 import NicknameModal from '@/components/NicknameModal';
+import { getDJStyle } from '@/lib/djStyles';
 import { Role, RoomType, VideoSource, DJMode, QueueMode } from '@prisma/client';
 import {
   ShieldAlert,
@@ -58,6 +59,7 @@ export default function RoomPage() {
     maxConsecutiveVideosPerUser: number;
     maxQueuedVideosPerUser: number;
     maxVideoDurationMinutes: number;
+    djStyle?: string;
   }>({
     slotCount: 10,
     djMode: DJMode.AUTO,
@@ -65,6 +67,7 @@ export default function RoomPage() {
     maxConsecutiveVideosPerUser: 2,
     maxQueuedVideosPerUser: 5,
     maxVideoDurationMinutes: 15,
+    djStyle: 'MIXED_PARTY',
   });
 
   const [playback, setPlayback] = useState<{
@@ -416,6 +419,17 @@ export default function RoomPage() {
     });
   };
 
+  // Mod / Admin Change DJ Style
+  const handleSetDJStyle = (djStyle: string) => {
+    if (!roomData?.id || !sessionToken) return;
+    const socket = getSocket();
+    socket.emit('mod:set_dj_style', {
+      roomId: roomData.id,
+      djStyle,
+      sessionToken,
+    });
+  };
+
   // Admin Delete Room
   const handleDeleteRoom = async () => {
     if (!roomData?.slug) return;
@@ -502,6 +516,18 @@ export default function RoomPage() {
                   <Globe size={10} /> {t('room.publicBadge')}
                 </span>
               )}
+              {settings?.djStyle && (() => {
+                const style = getDJStyle(settings.djStyle);
+                return (
+                  <span
+                    className={`flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-0.5 rounded-full ${style.badgeBg} ${style.badgeText} border ${style.badgeBorder}`}
+                    title={`DJ Zenei Stílus: ${style.name} (${style.description})`}
+                  >
+                    <span>{style.emoji}</span>
+                    <span>{style.name}</span>
+                  </span>
+                );
+              })()}
               <span
                 className="flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 shadow-sm shadow-emerald-950/20"
                 title="Valós időben a szobában tartózkodó felhasználók"
@@ -671,6 +697,7 @@ export default function RoomPage() {
         currentUserRole={currentUserRole}
         onSkipVideo={handleSkipVideo}
         onRegenerateInvite={handleRegenerateInvite}
+        onSetDJStyle={handleSetDJStyle}
         onSetRole={handleSetRole}
         onKickMember={handleKickMember}
         onMuteMember={handleMuteMember}

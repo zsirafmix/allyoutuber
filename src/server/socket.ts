@@ -6,6 +6,7 @@ import { claimSlot, validateRoomAccess, regenerateRoomInvite } from '../lib/room
 import { getYouTubeMetadata } from '../lib/youtube';
 import { addToQueue, getRoomQueue, popNextVideo, removeQueueItem, reorderQueueItem } from '../lib/queue';
 import { checkAndRefillDJ } from '../lib/dj';
+import { getDJStyle } from '../lib/djStyles';
 import { castVote } from '../lib/vote';
 import { checkChatRateLimit, checkEmojiRateLimit, sanitizeText } from '../lib/rateLimit';
 import { Role, VideoSource, DJMode } from '@prisma/client';
@@ -631,6 +632,53 @@ export function setupSocketIO(httpServer: HTTPServer) {
             senderNick: 'System',
             senderRole: Role.USER,
             message: `${session.nickname} skipped the current video.`,
+            isSystem: true,
+          },
+        });
+
+        await broadcastRoomState(roomId);
+      } catch (err: any) {
+        socket.emit('error', { message: err.message });
+      }
+    });
+
+    // 10b. Update Room DJ Style (Mod/Admin)
+    socket.on('mod:set_dj_style', async (data: { roomId: string; djStyle: string; sessionToken: string }) => {
+      try {
+        const { roomId, djStyle, sessionToken } = data;
+        const session = await getSession(sessionToken);
+        if (!session) return;
+
+        const member = await prisma.roomMember.findUnique({
+          where: { roomId_userId: { roomId, userId: session.userId } },
+        });
+
+        const isAuthorized = session.isGlobalAdmin || (member && (member.role === Role.ADMIN || member.role === Role.MODERATOR));
+        if (!isAuthorized) {
+          socket.emit('error', { message: 'Nincs jogosultságod a DJ stílus módosításához.' });
+          return;
+        }
+
+        const chosenStyle = getDJStyle(djStyle);
+
+        await prisma.roomSettings.update({
+          where: { roomId },
+          data: {
+            djStyle: chosenStyle.id,
+            djPlaylist: JSON.stringify(chosenStyle.tracks),
+          },
+        });
+
+        // Trigger DJ refill if queue is empty
+        await checkAndRefillDJ(roomId);
+
+        // System announcement
+        await prisma.chatMessage.create({
+          data: {
+            roomId,
+            senderNick: 'System',
+            senderRole: Role.USER,
+            message: `${session.nickname} átállította a DJ zenei stílusát: ${chosenStyle.emoji} ${chosenStyle.name}`,
             isSystem: true,
           },
         });

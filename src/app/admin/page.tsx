@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useLanguage } from '@/lib/i18n';
 import Link from 'next/link';
+import { getDJStyle } from '@/lib/djStyles';
 import {
   Shield,
   KeyRound,
@@ -627,6 +628,7 @@ export default function AdminPage() {
                     <th className="py-2.5 px-3">Típus</th>
                     <th className="py-2.5 px-3">Helyek</th>
                     <th className="py-2.5 px-3">Jelenlévők</th>
+                    <th className="py-2.5 px-3">DJ Stílus</th>
                     <th className="py-2.5 px-3">DJ Mód</th>
                     <th className="py-2.5 px-3">Queue Mód</th>
                     <th className="py-2.5 px-3 text-right">Művelet</th>
@@ -648,6 +650,17 @@ export default function AdminPage() {
                           <span className={`w-1.5 h-1.5 rounded-full ${r.onlineCount > 0 ? 'bg-emerald-400 animate-pulse' : 'bg-slate-600'}`} />
                           {r.onlineCount || 0} online
                         </span>
+                      </td>
+                      <td className="py-2.5 px-3">
+                        {(() => {
+                          const style = getDJStyle(r.settings?.djStyle);
+                          return (
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${style.badgeBg} ${style.badgeText} border ${style.badgeBorder}`}>
+                              <span>{style.emoji}</span>
+                              <span>{style.name}</span>
+                            </span>
+                          );
+                        })()}
                       </td>
                       <td className="py-2.5 px-3 font-semibold text-cyan-400">{r.settings?.djMode || 'AUTO'}</td>
                       <td className="py-2.5 px-3 font-semibold text-violet-400">{r.settings?.queueMode || 'FIFO'}</td>

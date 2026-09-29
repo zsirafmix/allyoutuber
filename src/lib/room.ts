@@ -1,6 +1,7 @@
 import prisma from './prisma';
 import { RoomType, Role, DJMode, QueueMode } from '@prisma/client';
 import { generateInviteCode, hashInviteCode } from './session';
+import { getDJStyle } from './djStyles';
 
 export interface CreateRoomInput {
   name: string;
@@ -8,6 +9,7 @@ export interface CreateRoomInput {
   type: RoomType;
   slotCount?: number;
   userId: string;
+  djStyle?: string;
 }
 
 export function generateSlug(name: string): string {
@@ -23,6 +25,7 @@ export function generateSlug(name: string): string {
 
 export async function createRoom(input: CreateRoomInput) {
   const slug = input.slug ? input.slug.toLowerCase().trim() : generateSlug(input.name);
+  const chosenStyle = getDJStyle(input.djStyle);
 
   // Check unique slug
   const existing = await prisma.room.findUnique({ where: { slug } });
@@ -52,6 +55,8 @@ export async function createRoom(input: CreateRoomInput) {
           djMode: DJMode.AUTO,
           djMinimumQueueLength: 2,
           djRepeatProtectionCount: 20,
+          djStyle: chosenStyle.id,
+          djPlaylist: JSON.stringify(chosenStyle.tracks),
         },
       },
       playbackState: {

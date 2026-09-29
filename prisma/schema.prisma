@@ -110,6 +110,7 @@ model RoomSettings {
   reactionsEnabled            Boolean   @default(true)
   votingEnabled               Boolean   @default(true)
   djMode                      DJMode    @default(AUTO)
+  djStyle                     String    @default("MIXED_PARTY")
   djMinimumQueueLength        Int       @default(2)
   djRepeatProtectionCount     Int       @default(20)
   djPlaylist                  String?   @db.Text
