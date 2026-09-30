@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { Play, Pause, AlertCircle, RefreshCw, Music, Radio, Disc, WifiOff, Users, Clock, User as UserIcon } from 'lucide-react';
+import React, { useEffect, useRef, useState, memo } from 'react';
+import { Play, WifiOff, Music, ListMusic } from 'lucide-react';
 import { formatDuration } from '@/lib/youtube';
 
 export interface TvQueuePreviewItem {
@@ -47,112 +47,150 @@ declare global {
   }
 }
 
+// Ultra-lightweight memoized Next 3 Tracks panel
+const TvNextTracks = memo(function TvNextTracks({
+  queue,
+}: {
+  queue: TvQueuePreviewItem[];
+}) {
+  const top3 = queue.slice(0, 3);
+
+  return (
+    <div className="w-full lg:w-80 xl:w-96 flex flex-col justify-center shrink-0">
+      <div className="p-4 sm:p-5 rounded-2xl bg-slate-900/90 border border-slate-700/80 shadow-xl">
+        <div className="flex items-center gap-2 mb-3.5 pb-2.5 border-b border-slate-800">
+          <ListMusic size={18} className="text-red-500" />
+          <h2 className="text-sm sm:text-base font-black uppercase tracking-wider text-slate-200">
+            Következő dalok ({top3.length})
+          </h2>
+        </div>
+
+        {top3.length === 0 ? (
+          <div className="py-8 text-center text-slate-400 text-xs sm:text-sm font-medium">
+            Nincs több dal a lejátszási sorban.
+          </div>
+        ) : (
+          <div className="space-y-2.5">
+            {top3.map((item, idx) => (
+              <div
+                key={item.id || idx}
+                className="p-3 rounded-xl bg-slate-950/80 border border-slate-800 flex items-center gap-3"
+              >
+                <span className="font-mono text-base sm:text-lg font-black text-red-500 w-5 text-center shrink-0">
+                  {idx + 1}.
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs sm:text-sm font-bold text-white truncate leading-snug">
+                    {item.title}
+                  </p>
+                  <div className="flex items-center gap-2 mt-1 text-[11px] text-slate-400">
+                    <span className="font-mono text-slate-300 font-semibold">{formatDuration(item.duration)}</span>
+                    <span>•</span>
+                    <span className="truncate text-slate-300">{item.submittedNick}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+});
+
 export default function TvPlayer({
   roomId,
   roomName,
   roomSlug,
   playback,
   queuePreview,
-  onlineCount = 1,
   isConnected,
   debugMode = false,
-  onDisconnect,
-  onRequestSync,
 }: TvPlayerProps) {
   const [playerReady, setPlayerReady] = useState(false);
   const [autoplayBlocked, setAutoplayBlocked] = useState(false);
-  const [currentPlayedVideoId, setCurrentPlayedVideoId] = useState<string | null>(null);
-  const [currentTimeSec, setCurrentTimeSec] = useState<number>(0);
-  const [actualPlayerTime, setActualPlayerTime] = useState<number>(0);
-  const [driftSec, setDriftSec] = useState<number>(0);
-  const [lastSocketEventTime, setLastSocketEventTime] = useState<string>(new Date().toLocaleTimeString());
-
-  // OLED screen-burn protection: subtle subpixel shifting (1-3px every 45s)
-  const [oledShift, setOledShift] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
 
   const playerRef = useRef<any>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const syncIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const currentVideoIdRef = useRef<string | null>(null);
+  const playbackRef = useRef<TvPlaybackData | null>(playback);
+  playbackRef.current = playback;
 
-  // Load YouTube IFrame API
+  // Initialize YouTube Iframe API (Lightweight, hardware-accelerated)
   useEffect(() => {
-    if (!window.YT) {
+    let isMounted = true;
+
+    const createPlayer = () => {
+      if (playerRef.current || !isMounted) return;
+      try {
+        playerRef.current = new window.YT.Player('tv-youtube-player-iframe', {
+          height: '100%',
+          width: '100%',
+          playerVars: {
+            autoplay: 1,
+            controls: 0,
+            disablekb: 1,
+            enablejsapi: 1,
+            fs: 0,
+            iv_load_policy: 3,
+            modestbranding: 1,
+            playsinline: 1,
+            rel: 0,
+            showinfo: 0,
+            origin: window.location.origin,
+          },
+          events: {
+            onReady: (e: any) => {
+              if (!isMounted) return;
+              setPlayerReady(true);
+              try {
+                e.target.playVideo();
+              } catch {}
+            },
+            onStateChange: (e: any) => {
+              // 1 = PLAYING, 2 = PAUSED, 3 = BUFFERING
+              if (e.data === 1) {
+                setAutoplayBlocked(false);
+              }
+            },
+            onError: (err: any) => {
+              console.warn('TV YouTube Player Error:', err?.data);
+            },
+          },
+        });
+      } catch (err) {
+        console.error('Failed to create TV YT Player:', err);
+      }
+    };
+
+    if (!window.YT || !window.YT.Player) {
       const tag = document.createElement('script');
       tag.src = 'https://www.youtube.com/iframe_api';
+      tag.async = true;
       const firstScriptTag = document.getElementsByTagName('script')[0];
       firstScriptTag?.parentNode?.insertBefore(tag, firstScriptTag);
-
       window.onYouTubeIframeAPIReady = () => {
-        initPlayer();
+        createPlayer();
       };
     } else {
-      initPlayer();
+      createPlayer();
     }
 
     return () => {
+      isMounted = false;
       if (playerRef.current && typeof playerRef.current.destroy === 'function') {
         try {
           playerRef.current.destroy();
         } catch {}
+        playerRef.current = null;
       }
     };
   }, []);
 
-  const initPlayer = () => {
-    if (playerRef.current) return;
-    try {
-      playerRef.current = new window.YT.Player('tv-youtube-iframe-player', {
-        height: '100%',
-        width: '100%',
-        playerVars: {
-          autoplay: 1,
-          controls: 0,
-          disablekb: 1,
-          enablejsapi: 1,
-          fs: 0,
-          iv_load_policy: 3,
-          modestbranding: 1,
-          playsinline: 1,
-          rel: 0,
-          showinfo: 0,
-          origin: window.location.origin,
-        },
-        events: {
-          onReady: (event: any) => {
-            setPlayerReady(true);
-            event.target.playVideo();
-          },
-          onStateChange: (event: any) => {
-            // YT.PlayerState: UNSTARTED (-1), ENDED (0), PLAYING (1), PAUSED (2), BUFFERING (3), CUED (5)
-            if (event.data === 1) {
-              setAutoplayBlocked(false);
-            }
-          },
-          onError: (err: any) => {
-            console.error('TV YouTube Player Error:', err);
-          },
-        },
-      });
-    } catch (err) {
-      console.error('Failed to init YT player:', err);
-    }
-  };
-
-  // OLED Screen burn prevention periodic shifter (runs every 60 seconds)
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const randomX = (Math.random() * 4 - 2); // -2px to +2px
-      const randomY = (Math.random() * 4 - 2);
-      setOledShift({ x: randomX, y: randomY });
-    }, 60000);
-    return () => clearInterval(interval);
-  }, []);
-
-  // TV Remote Navigation: Enter key dismisses autoplay block & starts playback
+  // TV Remote Enter/Space Key handler to unlock autoplay
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Enter' || e.code === 'Space') {
-        if (autoplayBlocked && playerRef.current) {
+      if (e.key === 'Enter' || e.code === 'Space' || e.key === 'MediaPlayPause') {
+        if (playerRef.current) {
           try {
             playerRef.current.playVideo();
             setAutoplayBlocked(false);
@@ -162,20 +200,17 @@ export default function TvPlayer({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [autoplayBlocked]);
+  }, []);
 
-  // Video Change & Playback Synchronization
+  // Video switching & Play/Pause (Triggered ONLY when videoId or paused state changes)
   useEffect(() => {
-    if (!playback || !playerReady || !playerRef.current) return;
+    if (!playerReady || !playerRef.current || !playback) return;
 
     const targetVideoId = playback.videoId;
-    setLastSocketEventTime(new Date().toLocaleTimeString());
 
-    // 1. New Video Loaded
-    if (targetVideoId && targetVideoId !== currentPlayedVideoId) {
-      setCurrentPlayedVideoId(targetVideoId);
+    if (targetVideoId && targetVideoId !== currentVideoIdRef.current) {
+      currentVideoIdRef.current = targetVideoId;
 
-      // Compute starting position
       let startSeconds = 0;
       if (playback.startedAt && !playback.paused) {
         startSeconds = Math.max(0, (Date.now() - new Date(playback.startedAt).getTime()) / 1000);
@@ -190,124 +225,81 @@ export default function TvPlayer({
           playerRef.current.playVideo();
         }
       } catch (err) {
-        console.error('Failed to load video on TV:', err);
+        console.error('TV Error loading video:', err);
       }
-    }
-
-    // 2. Pause / Resume state
-    if (playback.paused) {
+    } else if (playback.paused) {
       try {
         if (typeof playerRef.current.pauseVideo === 'function') {
           playerRef.current.pauseVideo();
         }
       } catch {}
-    } else if (currentPlayedVideoId === targetVideoId) {
+    } else if (currentVideoIdRef.current === targetVideoId) {
       try {
         if (typeof playerRef.current.playVideo === 'function') {
           playerRef.current.playVideo();
         }
       } catch {}
     }
-  }, [playback, playerReady, currentPlayedVideoId]);
+  }, [playback?.videoId, playback?.paused, playerReady]);
 
-  // Periodic Local Time Tick & Best-Effort Sync Correction (every 1s)
+  // Gentle background drift correction (Runs passively every 8s WITHOUT React setState to prevent UI lag!)
   useEffect(() => {
-    if (!playback || !playback.videoId || playback.paused) {
-      if (syncIntervalRef.current) clearInterval(syncIntervalRef.current);
-      return;
-    }
+    const driftCheckInterval = setInterval(() => {
+      const current = playbackRef.current;
+      if (!current || !current.videoId || current.paused || !playerRef.current) return;
 
-    syncIntervalRef.current = setInterval(() => {
-      // 1. Calculate expected server position
-      let expectedPos = 0;
-      if (playback.startedAt) {
-        expectedPos = Math.max(0, (Date.now() - new Date(playback.startedAt).getTime()) / 1000);
-      }
-      setCurrentTimeSec(expectedPos);
+      try {
+        if (typeof playerRef.current.getCurrentTime === 'function' && current.startedAt) {
+          const expectedPos = Math.max(0, (Date.now() - new Date(current.startedAt).getTime()) / 1000);
+          const actualPos = playerRef.current.getCurrentTime() || 0;
+          const drift = Math.abs(expectedPos - actualPos);
 
-      // 2. Query actual player position
-      if (playerRef.current && typeof playerRef.current.getCurrentTime === 'function') {
-        try {
-          const actualTime = playerRef.current.getCurrentTime() || 0;
-          setActualPlayerTime(actualTime);
-          const drift = Math.abs(expectedPos - actualTime);
-          setDriftSec(drift);
-
-          // If drift exceeds 2.5 seconds and playback is active, gently seek to expected position
-          if (drift > 2.5 && expectedPos < (playback.duration || 99999)) {
+          // Only seek if drift is significant (> 4.0s) and not past song duration
+          if (drift > 4.0 && expectedPos < (current.duration || 99999)) {
             playerRef.current.seekTo(expectedPos, true);
           }
-        } catch {}
-      }
-    }, 1000);
+        }
+      } catch {}
+    }, 8000);
 
-    return () => {
-      if (syncIntervalRef.current) clearInterval(syncIntervalRef.current);
-    };
-  }, [playback]);
-
-  const durationSec = playback?.duration || 0;
-  const progressPercent = durationSec > 0 ? Math.min(100, (currentTimeSec / durationSec) * 100) : 0;
+    return () => clearInterval(driftCheckInterval);
+  }, []);
 
   return (
-    <div className="relative min-h-screen w-screen bg-black text-white flex flex-col justify-between overflow-hidden select-none">
-      {/* Background UI Texture and Ambient Neon Glow */}
-      <div className="absolute inset-0 bg-[url('/ui-texture.jpg')] bg-cover bg-center opacity-[0.06] mix-blend-screen pointer-events-none" />
-      <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-red-600/10 rounded-full blur-[180px] pointer-events-none" />
-      <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-rose-600/10 rounded-full blur-[180px] pointer-events-none" />
-
-      {/* Connection Lost Alert Banner */}
+    <div className="relative min-h-screen w-screen flex flex-col justify-center p-4 sm:p-6 lg:p-8 select-none overflow-hidden">
+      {/* Disconnect Alert */}
       {!isConnected && (
-        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-6 py-3 rounded-2xl bg-red-600/90 text-white font-bold text-base shadow-2xl border border-red-400 animate-pulse">
-          <WifiOff size={22} />
-          <span>Kapcsolat megszakadt. Helyreállítás folyamatban...</span>
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-5 py-2.5 rounded-xl bg-red-600/90 text-white font-bold text-sm shadow-xl animate-pulse">
+          <WifiOff size={18} />
+          <span>Kapcsolat megszakadt...</span>
         </div>
       )}
 
-      {/* TV Debug Overlay (Active only when ?debug=1) */}
-      {debugMode && (
-        <div className="absolute top-4 right-4 z-50 p-4 rounded-2xl bg-black/90 border border-emerald-500/50 text-[11px] font-mono text-emerald-300 space-y-1 shadow-2xl backdrop-blur-md max-w-xs pointer-events-none">
-          <div className="flex items-center justify-between font-bold border-b border-emerald-500/30 pb-1">
-            <span>📺 TV DEBUG MODE</span>
-            <span className={isConnected ? 'text-emerald-400' : 'text-red-400'}>
-              {isConnected ? 'ONLINE' : 'OFFLINE'}
-            </span>
-          </div>
-          <p>Room: {roomSlug} ({roomId})</p>
-          <p>Video ID: {playback?.videoId || '—'}</p>
-          <p>Expected Pos: {currentTimeSec.toFixed(1)}s</p>
-          <p>Actual Pos: {actualPlayerTime.toFixed(1)}s</p>
-          <p>Sync Drift: {driftSec.toFixed(2)}s</p>
-          <p>Last Event: {lastSocketEventTime}</p>
-        </div>
-      )}
+      {/* Main Layout: 16:9 Video + Next 3 Songs */}
+      <div className="relative z-10 flex flex-col lg:flex-row items-center justify-center gap-6 max-w-[1920px] mx-auto w-full flex-1">
+        {/* Dominant 16:9 Video Player */}
+        <div className="w-full flex-1 flex items-center justify-center">
+          <div className="relative w-full aspect-video rounded-2xl sm:rounded-3xl overflow-hidden bg-black border border-slate-800 shadow-2xl">
+            <div id="tv-youtube-player-iframe" className="w-full h-full" />
 
-      {/* Main 16:9 Video & Info Stage */}
-      <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-6 p-6 sm:p-8 flex-1 items-stretch">
-        {/* Left Side: Massive 16:9 YouTube Player Frame */}
-        <div className="lg:col-span-8 flex flex-col justify-center">
-          <div className="relative w-full aspect-video rounded-3xl overflow-hidden bg-slate-950 border-2 border-red-500/50 shadow-2xl shadow-red-950/60 ring-2 ring-red-500/20">
-            {/* YouTube Iframe Container */}
-            <div id="tv-youtube-iframe-player" className="w-full h-full" />
-
-            {/* Waiting for video placeholder */}
-            {(!playback?.videoId) && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-slate-950/90 text-center p-6">
-                <div className="p-5 rounded-3xl bg-red-600/20 text-red-400 border border-red-500/30 animate-pulse">
-                  <Disc size={56} className="animate-spin" />
+            {/* Waiting placeholder when queue is empty */}
+            {!playback?.videoId && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-slate-950/90 text-center p-6">
+                <div className="p-4 rounded-2xl bg-red-600/20 text-red-400 border border-red-500/30">
+                  <Music size={40} className="animate-pulse" />
                 </div>
-                <h3 className="text-2xl sm:text-3xl font-black text-white">
+                <h3 className="text-xl sm:text-2xl font-black text-white">
                   Várakozás a következő videóra...
                 </h3>
-                <p className="text-sm text-slate-400 max-w-md">
-                  A szoba lejátszási listája jelenleg üres. Küldj be egy dalt a telefonodról!
+                <p className="text-xs sm:text-sm text-slate-400">
+                  A szoba lejátszási sora üres. Küldj be dalt a szobából!
                 </p>
               </div>
             )}
 
-            {/* Autoplay Blocked Big Overlay Button */}
+            {/* Autoplay blocked banner (Enter/OK unlocks) */}
             {autoplayBlocked && (
-              <div className="absolute inset-0 z-40 bg-black/85 flex flex-col items-center justify-center gap-5 p-6 backdrop-blur-sm">
+              <div className="absolute inset-0 z-40 bg-black/80 flex flex-col items-center justify-center gap-4 p-6">
                 <button
                   onClick={() => {
                     try {
@@ -315,119 +307,21 @@ export default function TvPlayer({
                       setAutoplayBlocked(false);
                     } catch {}
                   }}
-                  className="flex items-center gap-4 px-10 py-5 rounded-3xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-black text-2xl shadow-2xl shadow-red-600/60 border-2 border-red-400 transform transition active:scale-95 animate-bounce"
+                  className="flex items-center gap-3 px-8 py-4 rounded-2xl bg-red-600 hover:bg-red-500 text-white font-black text-xl shadow-xl transition active:scale-95 animate-bounce"
                 >
-                  <Play size={32} />
+                  <Play size={24} />
                   <span>LEJÁTSZÁS INDÍTÁSA (Enter)</span>
                 </button>
                 <p className="text-xs text-slate-300">
-                  Nyomd meg az Enter vagy OK gombot a TV távirányítón a videó elindításához.
+                  Nyomd meg az OK / Enter gombot a távirányítón a videó elindításához.
                 </p>
               </div>
             )}
           </div>
         </div>
 
-        {/* Right Side: MOST JÁTSZIK & KÖVETKEZIK Panels */}
-        <div
-          className="lg:col-span-4 flex flex-col justify-between gap-4"
-          style={{
-            transform: `translate(${oledShift.x}px, ${oledShift.y}px)`,
-            transition: 'transform 10s ease-in-out',
-          }}
-        >
-          {/* 1. MOST JÁTSZIK (Now Playing) Card */}
-          <div className="p-6 rounded-3xl bg-slate-900/90 border-2 border-red-500/60 shadow-2xl shadow-red-950/50 flex flex-col justify-between gap-4">
-            <div>
-              <div className="flex items-center justify-between mb-3">
-                <span className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-red-400">
-                  <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" />
-                  MOST JÁTSZIK
-                </span>
-                <span className="px-2.5 py-0.5 rounded-full bg-red-500/20 text-red-300 border border-red-500/30 text-xs font-bold font-mono">
-                  {roomName}
-                </span>
-              </div>
-
-              {/* Large, high-visibility title (32-40px on large displays) */}
-              <h2 className="text-2xl sm:text-3xl lg:text-3xl font-black text-white leading-tight tracking-tight line-clamp-3" title={playback?.title || ''}>
-                {playback?.title || 'Nincs aktív lejátszás'}
-              </h2>
-
-              <div className="mt-4 flex items-center gap-2 text-slate-300 text-base font-semibold">
-                <UserIcon size={18} className="text-red-400" />
-                <span>Beküldte: <strong className="text-white font-bold">{playback?.submittedBy || '🤖 Auto-DJ'}</strong></span>
-              </div>
-            </div>
-
-            {/* Progress Bar & Durations */}
-            <div className="space-y-1.5 pt-2 border-t border-slate-800">
-              <div className="w-full h-3 bg-slate-950 rounded-full overflow-hidden border border-slate-800 p-0.5">
-                <div
-                  className="h-full bg-gradient-to-r from-red-600 via-rose-500 to-amber-400 rounded-full transition-all duration-300 shadow-[0_0_12px_rgba(239,68,68,0.8)]"
-                  style={{ width: `${progressPercent}%` }}
-                />
-              </div>
-              <div className="flex items-center justify-between text-xs font-mono text-slate-400 font-bold">
-                <span>{formatDuration(Math.floor(currentTimeSec))}</span>
-                <span>{formatDuration(durationSec)}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* 2. KÖVETKEZIK (Up Next max 3) Card */}
-          <div className="p-6 rounded-3xl bg-slate-900/85 border border-slate-800 shadow-2xl flex-1 flex flex-col justify-between">
-            <div>
-              <div className="flex items-center justify-between mb-3.5">
-                <h3 className="text-sm font-black uppercase tracking-wider text-slate-300 flex items-center gap-2">
-                  <Clock size={16} className="text-red-400" />
-                  <span>KÖVETKEZIK ({queuePreview.length})</span>
-                </h3>
-              </div>
-
-              {queuePreview.length === 0 ? (
-                <div className="py-6 text-center text-slate-500 text-sm font-medium">
-                  Nincs további videó a sorban.
-                </div>
-              ) : (
-                <div className="space-y-2.5">
-                  {queuePreview.slice(0, 3).map((item, idx) => (
-                    <div
-                      key={item.id || idx}
-                      className="p-3 rounded-2xl bg-slate-950/80 border border-slate-800/90 flex items-center gap-3.5 shadow-md"
-                    >
-                      <span className="font-mono text-lg font-black text-red-500/80 w-6 text-center">
-                        {idx + 1}.
-                      </span>
-
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm sm:text-base font-bold text-slate-100 truncate leading-snug" title={item.title}>
-                          {item.title}
-                        </p>
-                        <div className="flex items-center gap-2 mt-1 text-xs text-slate-400 font-medium">
-                          <span className="font-mono text-slate-300 font-semibold">{formatDuration(item.duration)}</span>
-                          <span>•</span>
-                          <span className="truncate text-slate-300">{item.submittedNick}</span>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Bottom Room Info */}
-            <div className="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
-              <span className="flex items-center gap-1.5">
-                <Users size={14} className="text-emerald-400" />
-                <span>{onlineCount} jelenlévő a szobában</span>
-              </span>
-              <span className="font-mono text-[11px] text-slate-500">
-                /tv/{roomSlug}
-              </span>
-            </div>
-          </div>
-        </div>
+        {/* Next 3 Songs */}
+        <TvNextTracks queue={queuePreview} />
       </div>
     </div>
   );

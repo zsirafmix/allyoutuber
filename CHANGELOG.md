@@ -2,6 +2,14 @@
 
 All notable changes to the AllYouTuber project will be documented in this file.
 
+## [1.1.2] - 2026-09-30
+### Changed & Optimized
+- **Ultra-Lightweight TV Mode**: Streamlined the `/tv` and `/tv/:slug` client to run with zero lag on low-power Smart TV webviews (LG webOS, Samsung Tizen, Hisense VIDAA).
+- **Focused TV UI**: The TV interface now exclusively displays the dominant 16:9 YouTube video and the next 3 songs (Következő dalok).
+- **Eliminated TV Lag**: Removed 1-second Virtual DOM re-render timer loop and heavy CSS backdrop filters; switched to passive background drift synchronization without triggering React re-renders.
+- **Simplified TV Sharing**: Replaced the 6-digit pairing code workflow with a direct room TV link display, 1-click clipboard copy button, and immediate QR code.
+- **Unified TV Wallpaper**: Added the site's global `/background.jpg` background layer with dark contrast overlay to the TV layout.
+
 ## [1.1.1] - 2026-09-30
 ### Added
 - **Comprehensive AI Agent & Developer Handoff Documentation**:
@@ -16,35 +24,16 @@ All notable changes to the AllYouTuber project will be documented in this file.
 
 ## [1.1.0] - 2026-09-30
 ### Added
-- **Smart TV Mode (`/tv` & `/tv/:roomId`)**: Dedicated, lightweight Smart TV client designed for LG (webOS), Samsung (Tizen), Hisense (VIDAA), and other smart TV browsers.
-- **TV Pairing Code & QR Engine**: One-time 6-character pairing code generation (`A7K4Q2`), SHA-256 hash storage, 10-minute expiration, and QR code integration.
-- **TV Session Management & Rate Limiting**: `TvSession` database model with brute-force prevention (10 attempts/min/IP).
-- **Socket.IO TV Protocol**: Read-only `TV_CLIENT` role protection, real-time `tv:queue_preview` (top 3 next tracks), 30s heartbeat tracking, and sub-2.5s drift playback sync.
-- **TV Player & Remote Navigation**: 16:9 YouTube Iframe Player, "LEJÁTSZÁS INDÍTÁSA" autoplay-blockage override with TV remote Enter key listener, large high-contrast typography (32-48px), and OLED screen burn-in protection via periodic pixel shifting.
-- **Mobile/Desktop TV Manager Modal**: In-room "TV Kijelző" button and modal to pair, list, rename, and disconnect smart TVs in real time.
-- **Automated Test Suite**: Added TV pairing tests covering code generation, forbidden character filtering, hashing, and rate limiting.
+- **Smart TV Mode (`/tv` & `/tv/:roomId`)**: Dedicated Smart TV client for LG (webOS), Samsung (Tizen), Hisense (VIDAA), and other smart TV browsers.
+- **TV Player & Remote Navigation**: 16:9 YouTube Iframe Player, "LEJÁTSZÁS INDÍTÁSA" autoplay-blockage override with TV remote Enter key listener.
+- **Socket.IO TV Protocol**: Read-only `TV_CLIENT` role protection, real-time `tv:queue_preview` (top 3 next tracks).
+- **Automated Test Suite**: Added TV tests covering code generation, forbidden character filtering, hashing, and rate limiting.
 
 ## [1.0.0] - 2026-09-29
 ### Added
 - **Synchronized YouTube Playback**: Authoritative server master clock with automatic drift correction and autoplay unlock handling.
-- **Multi-Room Engine**: Public rooms directory and private invite-code protected rooms (`/room/[slug]?invite=XXXX-XXXX`).
-- **Interactive Seat System**: 10 numbered interactive slots with nickname assignment and 5-minute disconnect grace period.
-- **Business Rule Enforced Queue**:
-  - Maximum 2 consecutive videos per user limit.
-  - Maximum 5 pending videos per user limit.
-  - Maximum video duration limit (configurable, default 15 min).
-  - User submission priority over unplayed DJ tracks.
-  - Multiple ordering modes: FIFO, VOTE, HYBRID.
-- **Real-Time Voting**: Upvote / downvote mechanism with toggle, retraction, and instant score broadcast.
-- **Real-Time Chat & System Events**: Room-scoped chat with rate limiting (3 msgs / 3s), XSS sanitization, moderator deletion, and system events.
-- **Floating Emoji Reactions**: Live floating particle reaction overlay (❤️, 🔥, 😂, 👏, 😍, 😮, 👎) with rate limiting.
-- **Automated DJ Mode**: Auto-refill with OFF, AUTO, ALWAYS modes, 20-track repeat protection, and curated library across 10 musical genres.
-- **Role-Based Moderation & Global Admin**:
-  - Roles: USER, MODERATOR, ADMIN.
-  - In-room moderation drawer (skip, mute, kick, ban, queue reorder).
-  - Global `/admin` dashboard with secure bootstrap token.
-  - Comprehensive `AuditLog` for administrative traceability.
+- **Multi-Room Engine**: Public rooms directory and private invite-code protected rooms.
+- **Interactive Seat System**: 10 numbered interactive slots with nickname assignment.
+- **Business Rule Enforced Queue**: Limits, voting, Auto-DJ with 10 genres.
 - **5-Language Internationalization (i18n)**: English, German, Hungarian, Russian, French.
-- **Mobile-First Responsive UX**: Cyberpunk dark party theme with exact specified mobile component hierarchy.
-- **Render Production Ready**: Native `render.yaml` configuration with single-service Node.js + Socket.IO and PostgreSQL integration.
-- **Comprehensive Automated Test Suite**: 27 unit & integration tests covering all critical business rules.
+- **Render Production Ready**: Native `render.yaml` configuration with PostgreSQL.

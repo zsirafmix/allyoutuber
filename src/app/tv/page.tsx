@@ -1,216 +1,116 @@
 'use client';
 
-import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { useSearchParams } from 'next/navigation';
-import TvPairingScreen from '@/components/tv/TvPairingScreen';
-import TvPlayer, { TvPlaybackData, TvQueuePreviewItem } from '@/components/tv/TvPlayer';
-import { getSocket } from '@/lib/socketClient';
+import React, { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { Tv, Radio, ArrowRight, Sparkles } from 'lucide-react';
 
-function TvPageContent() {
-  const searchParams = useSearchParams();
-  const debugMode = searchParams.get('debug') === '1';
-
+function TvHomeContent() {
+  const router = useRouter();
+  const [slug, setSlug] = useState('');
+  const [rooms, setRooms] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [pairingCode, setPairingCode] = useState<string | null>(null);
-  const [expiresAt, setExpiresAt] = useState<string | null>(null);
-  const [deviceName, setDeviceName] = useState<string>('TV-1');
-  const [sessionToken, setSessionToken] = useState<string | null>(null);
-  const [isPaired, setIsPaired] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  // Room & Playback State
-  const [roomId, setRoomId] = useState<string>('');
-  const [roomName, setRoomName] = useState<string>('');
-  const [roomSlug, setRoomSlug] = useState<string>('');
-  const [playback, setPlayback] = useState<TvPlaybackData | null>(null);
-  const [queuePreview, setQueuePreview] = useState<TvQueuePreviewItem[]>([]);
-  const [onlineCount, setOnlineCount] = useState<number>(1);
-  const [isConnected, setIsConnected] = useState(false);
-
-  const socketRef = useRef<any>(null);
-
-  // 1. Fetch or Refresh Pairing Code
-  const fetchPairingCode = useCallback(async (forceNew = false) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const storedToken = forceNew ? null : localStorage.getItem('allyoutuber_tv_token');
-      const res = await fetch('/api/tv/pair/code', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token: storedToken }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to get TV code');
-
-      if (data.session?.token) {
-        localStorage.setItem('allyoutuber_tv_token', data.session.token);
-        setSessionToken(data.session.token);
-      }
-      if (data.session?.deviceName) {
-        setDeviceName(data.session.deviceName);
-      }
-
-      if (data.isPaired && data.session?.roomId) {
-        setIsPaired(true);
-        setRoomId(data.session.roomId);
-        setRoomSlug(data.session.roomSlug || '');
-        setRoomName(data.session.roomName || 'Room');
-      } else {
-        setIsPaired(false);
-        setPairingCode(data.pairingCode);
-        setExpiresAt(data.expiresAt);
-      }
-    } catch (err: any) {
-      console.error('Pairing fetch error:', err);
-      setError(err.message || 'Hiba a párosítási kód lekérésekor.');
-    } finally {
-      setLoading(false);
-    }
+  useEffect(() => {
+    fetch('/api/rooms')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.rooms) setRooms(data.rooms);
+      })
+      .catch((err) => console.error(err))
+      .finally(() => setLoading(false));
   }, []);
 
-  useEffect(() => {
-    fetchPairingCode();
-  }, [fetchPairingCode]);
-
-  // 2. Setup Socket.IO for TV
-  useEffect(() => {
-    if (!sessionToken) return;
-
-    const socket = getSocket();
-    socketRef.current = socket;
-
-    const onConnect = () => {
-      setIsConnected(true);
-      socket.emit('tv:init', { token: sessionToken });
-    };
-
-    const onDisconnect = () => {
-      setIsConnected(false);
-    };
-
-    socket.on('connect', onConnect);
-    socket.on('disconnect', onDisconnect);
-
-    // TV Pairing Signal
-    socket.on('tv:paired', (data: any) => {
-      setIsPaired(true);
-      if (data.roomId) setRoomId(data.roomId);
-      if (data.roomSlug) setRoomSlug(data.roomSlug);
-      if (data.roomName) setRoomName(data.roomName);
-      if (data.deviceName) setDeviceName(data.deviceName);
-    });
-
-    socket.on('tv:waiting', (data: any) => {
-      setIsPaired(false);
-      if (data.deviceName) setDeviceName(data.deviceName);
-    });
-
-    // TV Queue Preview update
-    socket.on('tv:queue_preview', (preview: TvQueuePreviewItem[]) => {
-      setQueuePreview(preview || []);
-    });
-
-    // Room State Update
-    socket.on('room:state_update', (state: any) => {
-      if (state.room) {
-        setRoomId(state.room.id);
-        setRoomSlug(state.room.slug);
-        setRoomName(state.room.name);
-      }
-      if (state.playback) {
-        setPlayback(state.playback);
-      }
-      if (state.onlineCount !== undefined) {
-        setOnlineCount(state.onlineCount);
-      }
-      if (state.queue) {
-        const preview = state.queue.slice(0, 3).map((item: any, idx: number) => ({
-          id: item.id,
-          position: idx + 1,
-          title: item.title,
-          duration: item.duration,
-          submittedNick: item.submittedNick,
-          thumbnailUrl: item.thumbnailUrl,
-          source: item.source,
-        }));
-        setQueuePreview(preview);
-      }
-    });
-
-    // TV Disconnected signal from phone/desktop
-    socket.on('tv:disconnected', () => {
-      setIsPaired(false);
-      fetchPairingCode(true);
-    });
-
-    if (socket.connected) {
-      onConnect();
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const clean = slug.trim().toLowerCase();
+    if (clean) {
+      router.push(`/tv/${clean}`);
     }
-
-    // 30s Heartbeat
-    const heartbeatTimer = setInterval(() => {
-      if (socket.connected) {
-        socket.emit('tv:heartbeat', { token: sessionToken });
-      }
-    }, 30000);
-
-    return () => {
-      clearInterval(heartbeatTimer);
-      socket.off('connect', onConnect);
-      socket.off('disconnect', onDisconnect);
-      socket.off('tv:paired');
-      socket.off('tv:waiting');
-      socket.off('tv:queue_preview');
-      socket.off('room:state_update');
-      socket.off('tv:disconnected');
-    };
-  }, [sessionToken, fetchPairingCode]);
-
-  // Request sync helper
-  const handleRequestSync = useCallback(() => {
-    if (socketRef.current && roomId) {
-      socketRef.current.emit('tv:sync_request', { roomId });
-    }
-  }, [roomId]);
-
-  if (!isPaired) {
-    return (
-      <TvPairingScreen
-        pairingCode={pairingCode}
-        expiresAt={expiresAt}
-        deviceName={deviceName}
-        loading={loading}
-        error={error}
-        onRefreshCode={() => fetchPairingCode(true)}
-      />
-    );
-  }
+  };
 
   return (
-    <TvPlayer
-      roomId={roomId}
-      roomName={roomName}
-      roomSlug={roomSlug}
-      playback={playback}
-      queuePreview={queuePreview}
-      onlineCount={onlineCount}
-      isConnected={isConnected}
-      debugMode={debugMode}
-      onRequestSync={handleRequestSync}
-      onDisconnect={() => {
-        setIsPaired(false);
-        fetchPairingCode(true);
-      }}
-    />
+    <div className="relative min-h-screen w-screen flex flex-col items-center justify-center p-6 sm:p-10 select-none text-white">
+      <div className="relative z-10 max-w-xl w-full p-8 rounded-3xl bg-slate-900/90 border border-red-500/40 shadow-2xl space-y-6">
+        <div className="flex items-center gap-4">
+          <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-red-600 to-rose-500 flex items-center justify-center text-white shadow-lg shadow-red-600/30">
+            <Tv size={28} />
+          </div>
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-black text-white">
+              AllYouTuber <span className="text-red-500 font-mono">TV</span>
+            </h1>
+            <p className="text-xs sm:text-sm text-slate-400">
+              Smart TV Megjelenítő & Videólejátszó Kliens
+            </p>
+          </div>
+        </div>
+
+        {/* Enter Room Slug Form */}
+        <form onSubmit={handleSubmit} className="space-y-3">
+          <label className="block text-xs font-bold uppercase tracking-wider text-slate-300">
+            Szoba azonosító (slug):
+          </label>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={slug}
+              onChange={(e) => setSlug(e.target.value)}
+              placeholder="pl. party-szoba"
+              className="flex-1 px-4 py-3 rounded-xl bg-slate-950 border border-slate-700 text-white font-mono text-base font-bold focus:outline-none focus:border-red-500"
+              autoFocus
+            />
+            <button
+              type="submit"
+              disabled={!slug.trim()}
+              className="px-6 py-3 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-sm shadow-lg shadow-red-600/30 transition disabled:opacity-50 flex items-center gap-2"
+            >
+              <span>Megnyitás</span>
+              <ArrowRight size={16} />
+            </button>
+          </div>
+        </form>
+
+        {/* Public Rooms List */}
+        <div className="space-y-3 pt-4 border-t border-slate-800">
+          <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
+            Elérhető nyilvános szobák:
+          </span>
+
+          {loading ? (
+            <p className="text-xs text-slate-500">Szobák betöltése...</p>
+          ) : rooms.length === 0 ? (
+            <p className="text-xs text-slate-500">Nincs elérhető nyilvános szoba.</p>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-56 overflow-y-auto">
+              {rooms.map((room) => (
+                <button
+                  key={room.id}
+                  onClick={() => router.push(`/tv/${room.slug}`)}
+                  className="p-3 rounded-xl bg-slate-950/80 hover:bg-slate-800 border border-slate-800 text-left transition flex items-center justify-between group"
+                >
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-white truncate group-hover:text-red-400">
+                      {room.name}
+                    </p>
+                    <p className="text-[10px] text-slate-500 font-mono">
+                      /tv/{room.slug}
+                    </p>
+                  </div>
+                  <ArrowRight size={14} className="text-slate-500 group-hover:text-red-400 shrink-0 ml-2" />
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
 
 export default function TvPage() {
   return (
-    <React.Suspense fallback={<div className="min-h-screen w-screen bg-black" />}>
-      <TvPageContent />
+    <React.Suspense fallback={<div className="min-h-screen w-screen bg-slate-950" />}>
+      <TvHomeContent />
     </React.Suspense>
   );
 }
