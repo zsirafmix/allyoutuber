@@ -64,10 +64,11 @@ export default function SlotsGrid({
   };
 
   return (
-    <div className="w-full rounded-2xl bg-slate-900/80 border border-slate-800 p-4 shadow-xl">
-      <div className="flex items-center justify-between mb-3">
+    <div className="relative overflow-hidden w-full rounded-2xl bg-slate-900/85 border border-slate-800 p-4 shadow-xl">
+      <div className="absolute inset-0 bg-[url('/ui-texture.jpg')] bg-cover bg-center opacity-[0.04] mix-blend-screen pointer-events-none" />
+      <div className="relative z-10 flex items-center justify-between mb-3">
         <h3 className="text-sm font-bold text-slate-300 flex items-center gap-2">
-          <Sparkles size={16} className="text-violet-400" />
+          <Sparkles size={16} className="text-red-400" />
           <span>{t('room.slotsTitle')}</span>
           <span className="text-xs font-normal text-slate-500">
             ({slotMap.size}/{slotCount})
@@ -75,7 +76,7 @@ export default function SlotsGrid({
         </h3>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+      <div className="relative z-10 grid grid-cols-2 sm:grid-cols-5 gap-2">
         {slotsArray.map((slotNum) => {
           const occupant = slotMap.get(slotNum);
           const isCurrentUser = occupant && occupant.userId === currentUserId;
@@ -86,8 +87,8 @@ export default function SlotsGrid({
                 key={slotNum}
                 className={`p-2.5 rounded-xl border flex flex-col justify-between transition ${
                   isCurrentUser
-                    ? 'bg-violet-950/40 border-violet-500/60 shadow-lg shadow-violet-900/20'
-                    : 'bg-slate-800/60 border-slate-700/60'
+                    ? 'bg-red-950/40 border-red-500/60 shadow-lg shadow-red-900/20'
+                    : 'bg-slate-800/70 border-slate-700/60'
                 }`}
               >
                 <div className="flex items-center justify-between mb-1">
@@ -98,7 +99,7 @@ export default function SlotsGrid({
                         ? 'bg-emerald-400 animate-pulse'
                         : 'bg-amber-400'
                     }`}
-                    title={occupant.isOnline !== false ? 'Online a szobában' : 'Lekapcsolódott (hely fenntartva)'}
+                    title={occupant.isOnline !== false ? t('slots.onlineStatus') : t('slots.offlineStatus')}
                   />
                 </div>
                 <div className="truncate font-bold text-xs sm:text-sm text-cyan-200" title={occupant.nickname}>
@@ -113,10 +114,10 @@ export default function SlotsGrid({
             <button
               key={slotNum}
               onClick={() => onClaimSlot(slotNum)}
-              className="p-2.5 rounded-xl border border-dashed border-slate-700/80 bg-slate-900/40 hover:bg-violet-900/20 hover:border-violet-500/60 text-slate-500 hover:text-violet-300 flex flex-col items-center justify-center gap-1 transition group"
-              title={`Hely #${slotNum} elfoglalása`}
+              className="p-2.5 rounded-xl border border-dashed border-slate-700/80 bg-slate-900/40 hover:bg-red-900/20 hover:border-red-500/60 text-slate-500 hover:text-red-300 flex flex-col items-center justify-center gap-1 transition group"
+              title={t('slots.claimSeatTitle', { slot: slotNum })}
             >
-              <span className="text-xs font-bold text-slate-500 group-hover:text-violet-400">
+              <span className="text-xs font-bold text-slate-500 group-hover:text-red-400">
                 #{slotNum}
               </span>
               <span className="text-[11px] font-medium flex items-center gap-1 text-slate-400 group-hover:text-white">
@@ -132,7 +133,7 @@ export default function SlotsGrid({
         <div className="mt-4 pt-3 border-t border-slate-800">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-bold text-slate-400">
-              👥 Foglalt nicknevek a szobában ({members.length}):
+              👥 {t('slots.occupiedTitle', { count: members.length })}
             </span>
           </div>
           <div className="flex flex-wrap gap-1.5">
@@ -144,7 +145,7 @@ export default function SlotsGrid({
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
                 <strong className="text-white font-bold">{m.nickname}</strong>
                 <span className="text-[10px] text-slate-400 font-mono">
-                  {m.slotIndex ? `#${m.slotIndex}` : 'Néző'}
+                  {m.slotIndex ? `#${m.slotIndex}` : t('slots.spectator')}
                 </span>
                 {m.role === Role.ADMIN && (
                   <span className="text-[9px] font-black px-1 rounded bg-amber-500/20 text-amber-300">ADMIN</span>

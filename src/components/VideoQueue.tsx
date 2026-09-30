@@ -99,7 +99,7 @@ export default function VideoQueue({
       await onAddVideo(urlInput.trim());
       setUrlInput('');
     } catch (err: any) {
-      setErrorMsg(err.message || 'Nem sikerült hozzáadni a videót.');
+      setErrorMsg(err.message || t('queue.addError'));
     } finally {
       setIsSubmitting(false);
     }
@@ -133,11 +133,13 @@ export default function VideoQueue({
 
   return (
     <div className="w-full flex flex-col gap-4">
-      {/* 1. Add Video Input Bar - Prominent YouTube Hub */}
-      <div className="relative p-4 sm:p-5 rounded-3xl bg-gradient-to-br from-slate-900 via-slate-900/95 to-red-950/30 border-2 border-red-500/70 shadow-2xl shadow-red-950/50 ring-1 ring-red-500/40 overflow-hidden transition-all">
+      {/* 1. Add Video Input Bar - Prominent YouTube Hub with UI Texture */}
+      <div className="relative p-4 sm:p-5 rounded-3xl bg-slate-900/95 border-2 border-red-500/70 shadow-2xl shadow-red-950/50 ring-1 ring-red-500/40 overflow-hidden transition-all">
+        {/* UI Texture Background Accent */}
+        <div className="absolute inset-0 bg-[url('/ui-texture.jpg')] bg-cover bg-center opacity-[0.14] mix-blend-screen pointer-events-none" />
         {/* Ambient background glow */}
-        <div className="absolute -top-16 -right-16 w-52 h-52 bg-red-600/15 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-16 -left-16 w-52 h-52 bg-violet-600/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -top-16 -right-16 w-52 h-52 bg-red-600/20 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-16 -left-16 w-52 h-52 bg-rose-600/15 rounded-full blur-3xl pointer-events-none" />
 
         {/* Header with YouTube logo and DJ seat indicator */}
         <div className="relative flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3.5">
@@ -148,14 +150,14 @@ export default function VideoQueue({
             <div>
               <div className="flex items-center gap-2 flex-wrap">
                 <h3 className="text-base sm:text-lg font-black text-white tracking-tight">
-                  YouTube Videó Hozzáadása
+                  {t('queue.addVideoTitle')}
                 </h3>
                 <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-red-500/20 text-red-300 border border-red-500/40 animate-pulse">
-                  🔴 Soron következő
+                  {t('queue.addVideoBadge')}
                 </span>
               </div>
               <p className="text-xs text-slate-300 font-medium">
-                Másold be a linket, és tedd be a szoba közös lejátszási listájába!
+                {t('queue.addVideoDesc')}
               </p>
             </div>
           </div>
@@ -164,12 +166,12 @@ export default function VideoQueue({
           {isSeated && userSlotIndex ? (
             <div className="self-start sm:self-auto flex items-center gap-1.5 px-3 py-1 rounded-xl bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 text-xs font-bold shrink-0">
               <Headphones size={13} className="text-cyan-400" />
-              <span>DJ #{userSlotIndex} széked aktív</span>
+              <span>{t('queue.activeSeatNotice', { slot: userSlotIndex })}</span>
             </div>
           ) : (
             <div className="self-start sm:self-auto flex items-center gap-1.5 px-3 py-1 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-300 text-xs font-bold shrink-0">
               <AlertCircle size={13} className="text-amber-400" />
-              <span>DJ szék szükséges</span>
+              <span>{t('queue.seatRequiredNotice')}</span>
             </div>
           )}
         </div>
@@ -188,7 +190,7 @@ export default function VideoQueue({
                 setUrlInput(e.target.value);
                 if (errorMsg) setErrorMsg(null);
               }}
-              placeholder="Illeszd be ide a YouTube linket (pl. https://youtu.be/... vagy https://youtube.com/watch?v=...)"
+              placeholder={t('room.inputPlaceholder')}
               className="w-full py-3.5 px-2 bg-transparent text-white placeholder-slate-400 text-sm sm:text-base font-semibold focus:outline-none"
               disabled={isSubmitting}
             />
@@ -198,7 +200,7 @@ export default function VideoQueue({
                 type="button"
                 onClick={() => setUrlInput('')}
                 className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition mr-1"
-                title="Törlés"
+                title={t('room.cancel')}
               >
                 <X size={16} />
               </button>
@@ -208,10 +210,10 @@ export default function VideoQueue({
               type="button"
               onClick={handlePasteClipboard}
               className="flex items-center gap-1.5 px-3 py-1.5 mr-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white text-xs font-bold border border-slate-700 transition shrink-0 active:scale-95 shadow-sm"
-              title="Beillesztés a vágólapról"
+              title={t('queue.pasteBtn')}
             >
               <ClipboardPaste size={14} className="text-red-400" />
-              <span className="hidden sm:inline">Beillesztés</span>
+              <span className="hidden sm:inline">{t('queue.pasteBtn')}</span>
             </button>
           </div>
 
@@ -223,12 +225,12 @@ export default function VideoQueue({
             {isSubmitting ? (
               <>
                 <Disc size={18} className="animate-spin" />
-                <span>Hozzáadás...</span>
+                <span>{t('queue.addingBtn')}</span>
               </>
             ) : (
               <>
                 <Plus size={20} strokeWidth={3} />
-                <span>Videó Hozzáadása</span>
+                <span>{t('queue.addBtn')}</span>
               </>
             )}
           </button>
@@ -240,19 +242,19 @@ export default function VideoQueue({
             <div className="flex items-center gap-3 min-w-0">
               <img
                 src={`https://img.youtube.com/vi/${detectedVideoId}/hqdefault.jpg`}
-                alt="Előnézet"
+                alt="Preview"
                 className="w-16 h-10 object-cover rounded-xl border border-slate-700 shrink-0"
               />
               <div className="min-w-0">
                 <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-400">
                   <CheckCircle2 size={14} className="shrink-0" />
-                  <span className="truncate">Érvényes YouTube videó felismerve!</span>
+                  <span className="truncate">{t('queue.validVideoDetected')}</span>
                 </div>
-                <p className="text-[11px] text-slate-400 font-mono truncate">Azonosító: {detectedVideoId}</p>
+                <p className="text-[11px] text-slate-400 font-mono truncate">{t('queue.videoIdLabel')}: {detectedVideoId}</p>
               </div>
             </div>
             <span className="text-xs text-slate-300 font-medium hidden sm:inline shrink-0">
-              Nyomd meg a gombot vagy az Entert ⏎
+              {t('queue.pressAddOrEnter')}
             </span>
           </div>
         )}
@@ -262,14 +264,14 @@ export default function VideoQueue({
           <div className="mt-3 p-3 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs flex items-center gap-2">
             <AlertCircle size={16} className="text-amber-400 shrink-0" />
             <span>
-              <strong>Figyelem:</strong> Zenét csak DJ széket elfoglaló felhasználók küldhetnek be a várólistára. Foglalj el egy szabad helyet a jobb oldali székek közül a <strong>&quot;Foglalás&quot;</strong> gombbal!
+              {t('queue.seatRequiredNotice')}
             </span>
           </div>
         )}
 
         {/* Supported link formats helper */}
         <div className="mt-3 flex items-center gap-2 text-[11px] text-slate-400 flex-wrap">
-          <span className="font-semibold text-slate-500">Támogatott linkek:</span>
+          <span className="font-semibold text-slate-500">{t('queue.supportedLinks')}</span>
           <span className="px-2 py-0.5 rounded-lg bg-slate-800/80 border border-slate-700/60 font-mono">youtube.com/watch?v=...</span>
           <span className="px-2 py-0.5 rounded-lg bg-slate-800/80 border border-slate-700/60 font-mono">youtu.be/...</span>
           <span className="px-2 py-0.5 rounded-lg bg-slate-800/80 border border-slate-700/60 font-mono">youtube.com/shorts/...</span>
@@ -293,11 +295,12 @@ export default function VideoQueue({
         )}
       </div>
 
-      {/* 2. UP NEXT (KÖVETKEZIK) Block */}
+      {/* 2. UP NEXT (KÖVETKEZIK) Block with UI texture */}
       {upNextItem && (
-        <div className="p-4 rounded-2xl bg-gradient-to-r from-violet-950/40 to-slate-900 border border-violet-800/50 shadow-xl">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-black uppercase tracking-wider text-violet-400 flex items-center gap-1.5">
+        <div className="relative overflow-hidden p-4 rounded-2xl bg-gradient-to-r from-red-950/40 via-slate-900 to-slate-900 border border-red-500/40 shadow-xl">
+          <div className="absolute inset-0 bg-[url('/ui-texture.jpg')] bg-cover bg-center opacity-[0.07] mix-blend-screen pointer-events-none" />
+          <div className="relative z-10 flex items-center justify-between mb-2">
+            <span className="text-xs font-black uppercase tracking-wider text-red-400 flex items-center gap-1.5">
               <PlayCircle size={14} /> {t('room.upNextTitle')}
             </span>
             <span className="text-xs text-slate-400 font-mono">
@@ -305,7 +308,7 @@ export default function VideoQueue({
             </span>
           </div>
 
-          <div className="flex gap-3 items-center">
+          <div className="relative z-10 flex gap-3 items-center">
             <img
               src={upNextItem.thumbnailUrl}
               alt={upNextItem.title}
@@ -328,7 +331,7 @@ export default function VideoQueue({
               <button
                 onClick={() => onVote(upNextItem.id, 1)}
                 className="p-1 text-slate-400 hover:text-emerald-400 active:scale-125 transition"
-                title="Upvote"
+                title={t('queue.upvote')}
               >
                 <ThumbsUp size={14} />
               </button>
@@ -338,7 +341,7 @@ export default function VideoQueue({
               <button
                 onClick={() => onVote(upNextItem.id, -1)}
                 className="p-1 text-slate-400 hover:text-rose-400 active:scale-125 transition"
-                title="Downvote"
+                title={t('queue.downvote')}
               >
                 <ThumbsDown size={14} />
               </button>
@@ -347,11 +350,12 @@ export default function VideoQueue({
         </div>
       )}
 
-      {/* 3. Full Queue List */}
-      <div className="rounded-2xl bg-slate-900/80 border border-slate-800 p-4 shadow-xl">
-        <div className="flex items-center justify-between mb-3">
+      {/* 3. Full Queue List with UI texture */}
+      <div className="relative overflow-hidden rounded-2xl bg-slate-900/85 border border-slate-800 p-4 shadow-xl">
+        <div className="absolute inset-0 bg-[url('/ui-texture.jpg')] bg-cover bg-center opacity-[0.03] mix-blend-screen pointer-events-none" />
+        <div className="relative z-10 flex items-center justify-between mb-3">
           <h3 className="text-sm font-bold text-slate-300 flex items-center gap-2">
-            <ListMusic size={16} className="text-cyan-400" />
+            <ListMusic size={16} className="text-red-400" />
             <span>{t('queue.title')}</span>
             <span className="text-xs text-slate-500 font-mono">({queue.length})</span>
           </h3>
@@ -401,6 +405,7 @@ export default function VideoQueue({
                     <button
                       onClick={() => onVote(item.id, 1)}
                       className="p-1 text-slate-400 hover:text-emerald-400 transition"
+                      title={t('queue.upvote')}
                     >
                       <ThumbsUp size={12} />
                     </button>
@@ -410,6 +415,7 @@ export default function VideoQueue({
                     <button
                       onClick={() => onVote(item.id, -1)}
                       className="p-1 text-slate-400 hover:text-rose-400 transition"
+                      title={t('queue.downvote')}
                     >
                       <ThumbsDown size={12} />
                     </button>

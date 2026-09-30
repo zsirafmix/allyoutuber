@@ -85,6 +85,15 @@ export default function ModeratorDrawer({
   const isAdmin = currentUserRole === Role.ADMIN;
   const isModOrAdmin = isAdmin || currentUserRole === Role.MODERATOR;
 
+  const getTranslatedStyle = (styleId?: string | null) => {
+    const s = getDJStyle(styleId);
+    const translatedName = t(`djStyles.${s.id}.name`);
+    return {
+      ...s,
+      name: translatedName.startsWith('djStyles.') ? s.name : translatedName,
+    };
+  };
+
   if (!isOpen) return null;
 
   const handleRegenerate = async () => {
@@ -175,16 +184,16 @@ export default function ModeratorDrawer({
           {/* Current Settings Overview */}
           <div className="p-4 rounded-xl bg-slate-800/40 border border-slate-800 space-y-2 mb-6">
             <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5 mb-2">
-              <Sliders size={13} /> Szoba Konfiguráció
+              <Sliders size={13} /> {t('mod.configTitle')}
             </h3>
             <div className="flex justify-between text-xs text-slate-300">
               <span className="text-slate-400">{t('mod.djMode')}:</span>
               <span className="font-semibold text-cyan-400">{settings.djMode}</span>
             </div>
             <div className="flex justify-between text-xs text-slate-300">
-              <span className="text-slate-400">DJ Zenei Stílus:</span>
+              <span className="text-slate-400">{t('mod.djStyleTitle')}</span>
               {(() => {
-                const curStyle = getDJStyle(settings.djStyle);
+                const curStyle = getTranslatedStyle(settings.djStyle);
                 return (
                   <span className="font-semibold text-amber-300 flex items-center gap-1">
                     <span>{curStyle.emoji}</span>
@@ -195,7 +204,7 @@ export default function ModeratorDrawer({
             </div>
             {isModOrAdmin && onSetDJStyle && (
               <div className="pt-2 pb-1 border-t border-slate-700/50 space-y-1">
-                <span className="text-[11px] font-semibold text-slate-400">DJ Stílus váltása:</span>
+                <span className="text-[11px] font-semibold text-slate-400">{t('mod.changeDJStyle')}</span>
                 <select
                   value={settings.djStyle || 'MIXED_PARTY'}
                   onChange={(e) => onSetDJStyle(e.target.value)}
@@ -203,7 +212,7 @@ export default function ModeratorDrawer({
                 >
                   {DJ_STYLE_LIST.map((s) => (
                     <option key={s.id} value={s.id}>
-                      {s.emoji} {s.name}
+                      {s.emoji} {getTranslatedStyle(s.id).name}
                     </option>
                   ))}
                 </select>
@@ -223,7 +232,7 @@ export default function ModeratorDrawer({
             </div>
             <div className="flex justify-between text-xs text-slate-300">
               <span className="text-slate-400">{t('mod.durationLimit')}:</span>
-              <span className="font-semibold text-white">{settings.maxVideoDurationMinutes} perc</span>
+              <span className="font-semibold text-white">{settings.maxVideoDurationMinutes} {t('mod.minutes')}</span>
             </div>
           </div>
 
@@ -246,7 +255,7 @@ export default function ModeratorDrawer({
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-bold text-slate-300">{m.nickname}</span>
                       <span className="text-[10px] text-slate-500 font-mono">
-                        {m.slotIndex ? `(Slot #${m.slotIndex})` : '(Néző)'}
+                        {m.slotIndex ? `(Slot #${m.slotIndex})` : `(${t('mod.spectator')})`}
                       </span>
                       <span
                         className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
@@ -261,7 +270,7 @@ export default function ModeratorDrawer({
                       </span>
                       {m.isMuted && (
                         <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300">
-                          Némítva
+                          {t('mod.muted')}
                         </span>
                       )}
                     </div>
@@ -276,14 +285,14 @@ export default function ModeratorDrawer({
                               <button
                                 onClick={() => onSetRole?.(m.userId, Role.MODERATOR)}
                                 className="px-1.5 py-0.5 rounded bg-cyan-600/30 hover:bg-cyan-600/50 border border-cyan-500/40 text-cyan-200 text-[10px] font-bold transition"
-                                title="Kinevezés moderátornak"
+                                title={t('mod.promoteModTitle')}
                               >
                                 +MOD
                               </button>
                               <button
                                 onClick={() => onSetRole?.(m.userId, Role.ADMIN)}
                                 className="px-1.5 py-0.5 rounded bg-amber-500/20 hover:bg-amber-500/40 border border-amber-500/40 text-amber-300 text-[10px] font-bold transition"
-                                title="Kinevezés szoba adminisztrátornak"
+                                title={t('mod.promoteAdminTitle')}
                               >
                                 +ADMIN
                               </button>
@@ -295,14 +304,14 @@ export default function ModeratorDrawer({
                               <button
                                 onClick={() => onSetRole?.(m.userId, Role.USER)}
                                 className="px-1.5 py-0.5 rounded bg-slate-700 hover:bg-slate-600 text-slate-300 text-[10px] font-bold transition"
-                                title="Moderátori jog visszavonása sima felhasználóvá"
+                                title={t('mod.demoteUserTitle')}
                               >
                                 -MOD
                               </button>
                               <button
                                 onClick={() => onSetRole?.(m.userId, Role.ADMIN)}
                                 className="px-1.5 py-0.5 rounded bg-amber-500/20 hover:bg-amber-500/40 border border-amber-500/40 text-amber-300 text-[10px] font-bold transition"
-                                title="Előléptetés adminisztrátornak"
+                                title={t('mod.promoteAdminTitle')}
                               >
                                 +ADMIN
                               </button>
@@ -313,7 +322,7 @@ export default function ModeratorDrawer({
                             <button
                               onClick={() => onSetRole?.(m.userId, Role.MODERATOR)}
                               className="px-1.5 py-0.5 rounded bg-slate-700 hover:bg-slate-600 text-amber-300 text-[10px] font-bold transition"
-                              title="Admin rang visszavonása moderátorra"
+                              title={t('mod.demoteMod')}
                             >
                               -ADMIN
                             </button>
@@ -330,7 +339,7 @@ export default function ModeratorDrawer({
                               ? 'bg-emerald-600/30 text-emerald-300 hover:bg-emerald-600/50'
                               : 'bg-slate-700 hover:bg-slate-600 text-slate-300'
                           }`}
-                          title={m.isMuted ? 'Némítás feloldása' : 'Némítás'}
+                          title={m.isMuted ? t('mod.unmuteTitle') : t('mod.muteTitle')}
                         >
                           {m.isMuted ? <Volume2 size={12} /> : <VolumeX size={12} />}
                         </button>
@@ -341,7 +350,7 @@ export default function ModeratorDrawer({
                         <button
                           onClick={() => onKickMember?.(m.userId)}
                           className="p-1 rounded bg-rose-600/20 hover:bg-rose-600/40 border border-rose-500/30 text-rose-300 text-[10px] font-bold transition"
-                          title="Felállítás a helyről"
+                          title={t('mod.kickSeatTitle')}
                         >
                           <UserX size={12} />
                         </button>
@@ -357,18 +366,18 @@ export default function ModeratorDrawer({
           {isAdmin && (
             <div className="pt-4 border-t border-rose-900/40 mt-4 space-y-2">
               <span className="text-[11px] font-bold uppercase tracking-wider text-rose-400 flex items-center gap-1.5">
-                <Trash2 size={13} /> Veszélyzóna (Admin)
+                <Trash2 size={13} /> {t('mod.deleteRoom')}
               </span>
               <button
                 onClick={() => {
-                  if (window.confirm(`Biztosan véglegesen törölni szeretnéd a(z) "${room.slug}" szobát? Ez nem vonható vissza!`)) {
+                  if (window.confirm(t('mod.confirmDelete', { room: room.slug }))) {
                     onDeleteRoom?.();
                   }
                 }}
                 className="w-full py-2 px-3 rounded-xl bg-rose-600/20 hover:bg-rose-600/30 border border-rose-500/40 text-rose-300 font-bold text-xs flex items-center justify-center gap-2 transition"
               >
                 <Trash2 size={14} />
-                <span>Szoba Végleges Törlése</span>
+                <span>{t('mod.deleteRoom')}</span>
               </button>
             </div>
           )}

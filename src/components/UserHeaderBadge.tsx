@@ -1,10 +1,12 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useLanguage } from '@/lib/i18n';
 import { User, LogOut, Edit2 } from 'lucide-react';
 import NicknameModal from './NicknameModal';
 
 export default function UserHeaderBadge() {
+  const { t } = useLanguage();
   const [currentUser, setCurrentUser] = useState<{ id: string; nickname: string; isGlobalAdmin: boolean } | null>(null);
   const [showModal, setShowModal] = useState(false);
 
@@ -83,7 +85,7 @@ export default function UserHeaderBadge() {
           <button
             onClick={() => setShowModal(true)}
             className="p-1 rounded text-slate-400 hover:text-white transition"
-            title="Nicknév módosítása"
+            title={t('userBadge.changeNickTitle')}
           >
             <Edit2 size={12} />
           </button>
@@ -91,7 +93,7 @@ export default function UserHeaderBadge() {
           <button
             onClick={handleLogout}
             className="p-1 rounded text-slate-400 hover:text-rose-400 transition"
-            title="Kijelentkezés"
+            title={t('userBadge.logoutTitle')}
           >
             <LogOut size={12} />
           </button>
@@ -102,7 +104,7 @@ export default function UserHeaderBadge() {
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-violet-600/20 hover:bg-violet-600/30 border border-violet-500/30 text-violet-300 text-xs font-semibold transition"
         >
           <User size={13} />
-          <span className="hidden sm:inline">Nicknév</span>
+          <span className="hidden sm:inline">{t('userBadge.nickBtn')}</span>
         </button>
       )}
 

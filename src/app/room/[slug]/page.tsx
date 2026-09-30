@@ -442,8 +442,7 @@ export default function RoomPage() {
         },
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Szoba törlése sikertelen.');
-      alert('A szoba sikeresen törölve lett.');
+      if (!res.ok) throw new Error(data.error || 'Failed to delete room.');
       router.push('/');
     } catch (err: any) {
       alert(err.message);
@@ -473,7 +472,7 @@ export default function RoomPage() {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
         <Disc size={48} className="text-violet-500 animate-spin" />
-        <p className="text-sm font-semibold text-slate-400">Belépés a szobába...</p>
+        <p className="text-sm font-semibold text-slate-400">{t('room.entering')}</p>
       </div>
     );
   }
@@ -484,13 +483,13 @@ export default function RoomPage() {
         <div className="p-4 rounded-full bg-rose-500/20 text-rose-400 w-16 h-16 mx-auto flex items-center justify-center mb-4">
           <Lock size={32} />
         </div>
-        <h2 className="text-xl font-bold text-white mb-2">Hozzáférés megtagadva</h2>
-        <p className="text-sm text-slate-400 mb-6">{accessError || 'Szoba nem található.'}</p>
+        <h2 className="text-xl font-bold text-white mb-2">{t('room.accessDenied')}</h2>
+        <p className="text-sm text-slate-400 mb-6">{accessError || t('room.accessDenied')}</p>
         <Link
           href="/"
           className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-sm font-bold transition"
         >
-          <ArrowLeft size={16} /> Vissza a szobalistához
+          <ArrowLeft size={16} /> {t('room.backToRooms')}
         </Link>
       </div>
     );
@@ -518,23 +517,27 @@ export default function RoomPage() {
               )}
               {settings?.djStyle && (() => {
                 const style = getDJStyle(settings.djStyle);
+                const translatedName = t(`djStyles.${style.id}.name`);
+                const translatedDesc = t(`djStyles.${style.id}.desc`);
+                const name = translatedName.startsWith('djStyles.') ? style.name : translatedName;
+                const desc = translatedDesc.startsWith('djStyles.') ? style.description : translatedDesc;
                 return (
                   <span
                     className={`flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-0.5 rounded-full ${style.badgeBg} ${style.badgeText} border ${style.badgeBorder}`}
-                    title={`DJ Zenei Stílus: ${style.name} (${style.description})`}
+                    title={`${t('djStyles.title')}: ${name} (${desc})`}
                   >
                     <span>{style.emoji}</span>
-                    <span>{style.name}</span>
+                    <span>{name}</span>
                   </span>
                 );
               })()}
               <span
                 className="flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 shadow-sm shadow-emerald-950/20"
-                title="Valós időben a szobában tartózkodó felhasználók"
+                title={t('room.onlineUsersTooltip')}
               >
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                 <Users size={11} className="text-emerald-400" />
-                <span>{onlineCount} jelenlévő</span>
+                <span>{t('room.onlineCount', { count: onlineCount })}</span>
               </span>
             </div>
             <p className="text-xs text-slate-400 font-mono mt-0.5">/room/{roomData.slug}</p>
@@ -549,7 +552,7 @@ export default function RoomPage() {
             title={t('room.copyInvite')}
           >
             {inviteCopied ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
-            <span className="hidden sm:inline">{inviteCopied ? 'Másolva!' : t('room.copyInvite')}</span>
+            <span className="hidden sm:inline">{inviteCopied ? t('room.copied') : t('room.copyInvite')}</span>
           </button>
 
           {/* Moderation Controls Drawer Toggle */}

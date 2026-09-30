@@ -95,7 +95,7 @@ export default function AdminPage() {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Hiba az IP lekérdezésekor.');
+      if (!res.ok) throw new Error(data.error || t('admin.ipLookupError'));
       setManualIpResult(data);
     } catch (err: any) {
       setManualIpError(err.message);
@@ -121,7 +121,7 @@ export default function AdminPage() {
   }, [stats?.users, userSearchTerm]);
 
   const handleDeleteRoom = async (slug: string, name: string) => {
-    if (!window.confirm(`Biztosan törölni szeretnéd a(z) "${name}" (/room/${slug}) szobát? A szoba és annak minden adata (várólista, csevegés) törlődik!`)) {
+    if (!window.confirm(t('admin.confirmDeleteRoom', { name, slug }))) {
       return;
     }
 
@@ -137,9 +137,9 @@ export default function AdminPage() {
       });
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || 'A szoba törlése sikertelen.');
+        throw new Error(data.error || t('admin.deleteRoomError'));
       }
-      alert('Szoba sikeresen törölve.');
+      alert(t('admin.deleteRoomSuccess'));
       await loadDashboard();
     } catch (err: any) {
       alert(err.message);
@@ -151,10 +151,10 @@ export default function AdminPage() {
   const [updatingUserId, setUpdatingUserId] = useState<string | null>(null);
 
   const handleToggleGlobalAdmin = async (userId: string, targetNick: string, makeAdmin: boolean) => {
-    const actionText = makeAdmin
-      ? `főadminisztrátorrá szeretnéd tenni "${targetNick}" felhasználót`
-      : `vissza szeretnéd vonni "${targetNick}" főadminisztrátori jogát`;
-    if (!window.confirm(`Biztosan ${actionText}?`)) {
+    const confirmMsg = makeAdmin
+      ? t('admin.confirmMakeAdmin', { nick: targetNick })
+      : t('admin.confirmRevokeAdmin', { nick: targetNick });
+    if (!window.confirm(confirmMsg)) {
       return;
     }
 
@@ -171,9 +171,9 @@ export default function AdminPage() {
       });
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || 'A művelet sikertelen.');
+        throw new Error(data.error || t('admin.operationFailed'));
       }
-      alert(data.message || 'Sikeres módosítás.');
+      alert(data.message || t('admin.operationSuccess'));
       await loadDashboard();
     } catch (err: any) {
       alert(err.message);
@@ -213,7 +213,7 @@ export default function AdminPage() {
 
     const trimmed = adminNewNick.trim();
     if (trimmed.length < 2 || trimmed.length > 24) {
-      setRenameError('A nicknévnek 2 és 24 karakter között kell lennie.');
+      setRenameError(t('admin.nickLengthError'));
       return;
     }
 
@@ -231,7 +231,7 @@ export default function AdminPage() {
 
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || 'A nicknév módosítása sikertelen.');
+        throw new Error(data.error || t('admin.renameError'));
       }
 
       setAdminUsername(data.user.nickname);
@@ -240,7 +240,7 @@ export default function AdminPage() {
       localStorage.setItem('allyoutuber_user', JSON.stringify(data.user));
       window.dispatchEvent(new CustomEvent('allyoutuber:session_updated', { detail: data }));
 
-      setRenameSuccess(`Admin nickneved sikeresen módosítva: "${data.user.nickname}"!`);
+      setRenameSuccess(t('admin.renameSuccess', { nick: data.user.nickname }));
       await loadDashboard();
     } catch (err: any) {
       setRenameError(err.message);
@@ -271,11 +271,11 @@ export default function AdminPage() {
     setError(null);
 
     if (password.length < 4) {
-      setError('A jelszó legalább 4 karakter hosszú legyen.');
+      setError(t('admin.passwordTooShort'));
       return;
     }
     if (password !== confirmPassword) {
-      setError('A két beírt jelszó nem egyezik meg!');
+      setError(t('admin.passwordMismatch'));
       return;
     }
 
@@ -293,10 +293,10 @@ export default function AdminPage() {
 
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || 'Hiba történt az admin beállításakor.');
+        throw new Error(data.error || t('admin.setupError'));
       }
 
-      setSuccessMsg('Örök admin fiók sikeresen létrehozva!');
+      setSuccessMsg(t('admin.setupSuccess'));
       await checkAuthStatus();
     } catch (err: any) {
       setError(err.message);
@@ -324,10 +324,10 @@ export default function AdminPage() {
 
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || 'Hibás jelszó.');
+        throw new Error(data.error || t('admin.wrongPassword'));
       }
 
-      setSuccessMsg('Sikeres bejelentkezés!');
+      setSuccessMsg(t('admin.loginSuccess'));
       await checkAuthStatus();
     } catch (err: any) {
       setError(err.message);
@@ -347,7 +347,7 @@ export default function AdminPage() {
   if (loading) {
     return (
       <div className="py-24 text-center text-sm text-slate-400">
-        Adminisztrációs állapot ellenőrzése...
+        {t('admin.checkingAuth')}
       </div>
     );
   }
@@ -366,7 +366,7 @@ export default function AdminPage() {
             </div>
             <div>
               <h1 className="text-xl font-bold text-white">{t('admin.panelTitle')}</h1>
-              <p className="text-xs text-slate-400">AllYouTuber Örök Rendszergazda Hub</p>
+              <p className="text-xs text-slate-400">{t('admin.hubSubtitle')}</p>
             </div>
           </div>
         </div>
@@ -379,7 +379,7 @@ export default function AdminPage() {
             <button
               onClick={handleLogout}
               className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition"
-              title="Kijelentkezés"
+              title={t('admin.logout')}
             >
               <LogOut size={16} />
             </button>
@@ -397,13 +397,13 @@ export default function AdminPage() {
               <Sparkles size={26} />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-white">Örök Admin Beállítása</h2>
-              <p className="text-xs text-amber-400/90 font-medium">Első indítás érzékelve</p>
+              <h2 className="text-lg font-bold text-white">{t('admin.setupTitle')}</h2>
+              <p className="text-xs text-amber-400/90 font-medium">{t('admin.firstLaunchDetected')}</p>
             </div>
           </div>
 
           <p className="text-xs text-slate-400 mb-6 leading-relaxed">
-            Még nem létezik rendszergazda fiók. Állítsd be most az <b>örök admin jelszavadat</b> és nicknevedet, amellyel bármikor teljes hozzáférésed lesz az oldalhoz!
+            {t('admin.setupDescription')}
           </p>
 
           {error && (
@@ -421,42 +421,42 @@ export default function AdminPage() {
           <form onSubmit={handleSetup} className="space-y-4">
             <div>
               <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                Admin Nicknév
+                {t('admin.adminNicknameLabel')}
               </label>
               <input
                 type="text"
                 required
                 value={nickname}
                 onChange={(e) => setNickname(e.target.value)}
-                placeholder="pl. Zsiraf"
+                placeholder={t('admin.adminNicknamePlaceholder')}
                 className="w-full px-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
               />
             </div>
 
             <div>
               <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                Admin Jelszó
+                {t('admin.passwordLabel')}
               </label>
               <input
                 type="password"
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Válassz egy biztonságos jelszót..."
+                placeholder={t('admin.passwordPlaceholder')}
                 className="w-full px-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
               />
             </div>
 
             <div>
               <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                Jelszó Megerősítése
+                {t('admin.confirmPasswordLabel')}
               </label>
               <input
                 type="password"
                 required
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="Írd be újra a jelszót..."
+                placeholder={t('admin.confirmPasswordPlaceholder')}
                 className="w-full px-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
               />
             </div>
@@ -466,7 +466,7 @@ export default function AdminPage() {
               disabled={submitting}
               className="w-full py-3 rounded-xl bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-white font-bold text-sm shadow-xl shadow-amber-600/30 transition disabled:opacity-50"
             >
-              {submitting ? 'Mentés folyamatban...' : 'Örök Admin Fiók Létrehozása'}
+              {submitting ? t('admin.savingBtn') : t('admin.createAdminBtn')}
             </button>
           </form>
         </div>
@@ -480,9 +480,9 @@ export default function AdminPage() {
               <KeyRound size={28} />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-white">Örök Admin Belépés</h2>
+              <h2 className="text-lg font-bold text-white">{t('admin.loginTitle')}</h2>
               <p className="text-xs text-slate-400">
-                Fiók: <strong className="text-amber-400">{adminUsername || 'Admin'}</strong>
+                {t('admin.accountLabel')}: <strong className="text-amber-400">{adminUsername || 'Admin'}</strong>
               </p>
             </div>
           </div>
@@ -496,7 +496,7 @@ export default function AdminPage() {
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
               <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                Admin Jelszó
+                {t('admin.passwordLabel')}
               </label>
               <input
                 type="password"
@@ -514,7 +514,7 @@ export default function AdminPage() {
               disabled={submitting || !loginPassword}
               className="w-full py-3 rounded-xl bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-white font-bold text-sm shadow-xl shadow-amber-600/30 transition disabled:opacity-50"
             >
-              {submitting ? 'Ellenőrzés...' : 'Bejelentkezés Rendszergazdaként'}
+              {submitting ? t('admin.checkingBtn') : t('admin.loginBtn')}
             </button>
           </form>
         </div>
@@ -547,7 +547,7 @@ export default function AdminPage() {
 
             <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-between">
               <div>
-                <p className="text-xs text-slate-400 font-semibold">Audit Események</p>
+                <p className="text-xs text-slate-400 font-semibold">{t('admin.auditEvents')}</p>
                 <h3 className="text-2xl font-black text-white mt-1">{stats?.recentLogs?.length || 0}</h3>
               </div>
               <div className="p-3 rounded-xl bg-amber-600/20 text-amber-400">
@@ -565,13 +565,13 @@ export default function AdminPage() {
                 </div>
                 <div>
                   <h2 className="text-base font-bold text-white flex items-center gap-2">
-                    <span>Rendszergazdai Profil & Saját Nicknév Módosítása</span>
+                    <span>{t('admin.profileTitle')}</span>
                     <span className="text-[10px] font-extrabold px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40">
-                      FŐADMIN
+                      {t('admin.superAdminBadge')}
                     </span>
                   </h2>
                   <p className="text-xs text-slate-400">
-                    Jelenlegi bejelentkezett admin: <strong className="text-amber-400">{adminUser?.nickname || adminUsername}</strong>
+                    {t('admin.currentAdmin')}: <strong className="text-amber-400">{adminUser?.nickname || adminUsername}</strong>
                   </p>
                 </div>
               </div>
@@ -596,7 +596,7 @@ export default function AdminPage() {
                   type="text"
                   value={adminNewNick}
                   onChange={(e) => setAdminNewNick(e.target.value)}
-                  placeholder="Új admin nicknév..."
+                  placeholder={t('admin.newNickPlaceholder')}
                   maxLength={24}
                   className="w-full px-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 placeholder-slate-500"
                   disabled={renamingAdmin}
@@ -607,7 +607,7 @@ export default function AdminPage() {
                 disabled={renamingAdmin || !adminNewNick.trim() || adminNewNick.trim() === (adminUser?.nickname || adminUsername)}
                 className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-white font-bold text-xs shadow-lg shadow-amber-600/30 transition disabled:opacity-50 whitespace-nowrap"
               >
-                {renamingAdmin ? 'Mentés...' : 'Nicknév Frissítése'}
+                {renamingAdmin ? t('admin.savingBtn') : t('admin.updateNickBtn')}
               </button>
             </form>
           </div>
@@ -616,22 +616,22 @@ export default function AdminPage() {
           <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 shadow-xl space-y-4">
             <h2 className="text-base font-bold text-white flex items-center gap-2">
               <Radio size={18} className="text-violet-400" />
-              <span>Kezelt Szobák</span>
+              <span>{t('admin.roomsTableTitle')}</span>
             </h2>
 
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs text-slate-300">
                 <thead className="border-b border-slate-800 text-slate-400 font-bold uppercase text-[10px]">
                   <tr>
-                    <th className="py-2.5 px-3">Szoba név</th>
+                    <th className="py-2.5 px-3">{t('admin.colRoomName')}</th>
                     <th className="py-2.5 px-3">Slug</th>
-                    <th className="py-2.5 px-3">Típus</th>
-                    <th className="py-2.5 px-3">Helyek</th>
-                    <th className="py-2.5 px-3">Jelenlévők</th>
-                    <th className="py-2.5 px-3">DJ Stílus</th>
-                    <th className="py-2.5 px-3">DJ Mód</th>
-                    <th className="py-2.5 px-3">Queue Mód</th>
-                    <th className="py-2.5 px-3 text-right">Művelet</th>
+                    <th className="py-2.5 px-3">{t('admin.colType')}</th>
+                    <th className="py-2.5 px-3">{t('admin.colSlots')}</th>
+                    <th className="py-2.5 px-3">{t('admin.colOnline')}</th>
+                    <th className="py-2.5 px-3">{t('admin.djStyleCol')}</th>
+                    <th className="py-2.5 px-3">{t('admin.colDjMode')}</th>
+                    <th className="py-2.5 px-3">{t('admin.colQueueMode')}</th>
+                    <th className="py-2.5 px-3 text-right">{t('admin.colAction')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/60">
@@ -670,16 +670,16 @@ export default function AdminPage() {
                             href={`/room/${r.slug}`}
                             className="px-2.5 py-1 rounded-lg bg-violet-600/30 hover:bg-violet-600/50 text-violet-300 font-semibold"
                           >
-                            Belépés
+                            {t('admin.enterRoomBtn')}
                           </Link>
                           <button
                             onClick={() => handleDeleteRoom(r.slug, r.name)}
                             disabled={deletingRoomSlug === r.slug}
                             className="px-2 py-1 rounded-lg bg-rose-600/20 hover:bg-rose-600/40 text-rose-300 font-semibold flex items-center gap-1 transition disabled:opacity-50"
-                            title="Szoba törlése"
+                            title={t('admin.deleteRoomTitle')}
                           >
                             <Trash2 size={12} />
-                            <span>Törlés</span>
+                            <span>{t('admin.deleteRoomBtn')}</span>
                           </button>
                         </div>
                       </td>
@@ -699,10 +699,10 @@ export default function AdminPage() {
                 </div>
                 <div>
                   <h2 className="text-base font-bold text-white flex items-center gap-2">
-                    <span>Gyors IP Cím Elemző & Hálózatvizsgáló</span>
+                    <span>{t('admin.ipAnalyzerTitle')}</span>
                   </h2>
                   <p className="text-xs text-slate-400">
-                    Bármilyen IP cím azonnali geolokációs (GeoIP), internetszolgáltatói (ISP) és hálózati (ASN) lekérdezése
+                    {t('admin.ipAnalyzerDesc')}
                   </p>
                 </div>
               </div>
@@ -715,7 +715,7 @@ export default function AdminPage() {
                   type="text"
                   value={manualIpQuery}
                   onChange={(e) => setManualIpQuery(e.target.value)}
-                  placeholder="Írj be egy IP címet elemzéshez (pl. 195.228.12.34, 8.8.8.8, vagy belső IP)..."
+                  placeholder={t('admin.ipInputPlaceholder')}
                   className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white text-xs placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono"
                 />
               </div>
@@ -724,7 +724,7 @@ export default function AdminPage() {
                 disabled={manualIpLoading || !manualIpQuery.trim()}
                 className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-lg shadow-emerald-600/30 transition disabled:opacity-50 whitespace-nowrap flex items-center justify-center gap-1.5"
               >
-                {manualIpLoading ? 'Lekérdezés...' : 'IP Elemzése'}
+                {manualIpLoading ? t('admin.lookingUpBtn') : t('admin.analyzeIpBtn')}
               </button>
             </form>
 
@@ -745,7 +745,7 @@ export default function AdminPage() {
                         <button
                           onClick={() => copyToClipboard(manualIpResult.geo?.ip)}
                           className="text-slate-400 hover:text-white p-1 rounded transition"
-                          title="IP cím másolása"
+                          title={t('admin.copyIpTitle')}
                         >
                           {copiedIp === manualIpResult.geo?.ip ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
                         </button>
@@ -764,7 +764,7 @@ export default function AdminPage() {
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 text-xs font-semibold transition"
                     >
                       <MapPin size={14} />
-                      <span>Google Térkép</span>
+                      <span>{t('admin.googleMapsLink')}</span>
                       <ExternalLink size={12} />
                     </a>
                   )}
@@ -772,25 +772,25 @@ export default function AdminPage() {
 
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
                   <div className="p-2.5 rounded-xl bg-slate-900/60 border border-slate-700/60">
-                    <span className="text-[10px] text-slate-400 uppercase font-bold block mb-0.5">Szolgáltató (ISP)</span>
+                    <span className="text-[10px] text-slate-400 uppercase font-bold block mb-0.5">{t('admin.ispLabel')}</span>
                     <span className="font-semibold text-slate-200 truncate block" title={manualIpResult.geo?.isp}>
                       {manualIpResult.geo?.isp || '—'}
                     </span>
                   </div>
                   <div className="p-2.5 rounded-xl bg-slate-900/60 border border-slate-700/60">
-                    <span className="text-[10px] text-slate-400 uppercase font-bold block mb-0.5">Szervezet (Org / ASN)</span>
+                    <span className="text-[10px] text-slate-400 uppercase font-bold block mb-0.5">{t('admin.orgLabel')}</span>
                     <span className="font-semibold text-slate-200 truncate block" title={`${manualIpResult.geo?.org} (${manualIpResult.geo?.asn})`}>
                       {manualIpResult.geo?.org || manualIpResult.geo?.asn || '—'}
                     </span>
                   </div>
                   <div className="p-2.5 rounded-xl bg-slate-900/60 border border-slate-700/60">
-                    <span className="text-[10px] text-slate-400 uppercase font-bold block mb-0.5">Időzóna</span>
+                    <span className="text-[10px] text-slate-400 uppercase font-bold block mb-0.5">{t('admin.timezoneLabel')}</span>
                     <span className="font-semibold text-slate-200 truncate block">
                       {manualIpResult.geo?.timezone || '—'}
                     </span>
                   </div>
                   <div className="p-2.5 rounded-xl bg-slate-900/60 border border-slate-700/60">
-                    <span className="text-[10px] text-slate-400 uppercase font-bold block mb-0.5">Irányítószám</span>
+                    <span className="text-[10px] text-slate-400 uppercase font-bold block mb-0.5">{t('admin.postalLabel')}</span>
                     <span className="font-semibold text-slate-200 truncate block">
                       {manualIpResult.geo?.postal || '—'}
                     </span>
@@ -800,7 +800,7 @@ export default function AdminPage() {
                 {manualIpResult.matchingUsers && manualIpResult.matchingUsers.length > 0 && (
                   <div className="pt-2 border-t border-slate-700">
                     <span className="text-xs text-slate-400 font-semibold block mb-2">
-                      👥 Erről az IP címről eddig bejelentkezett felhasználók ({manualIpResult.matchingUsers.length}):
+                      👥 {t('admin.matchingUsersFromIp', { count: manualIpResult.matchingUsers.length })}
                     </span>
                     <div className="flex flex-wrap gap-2">
                       {manualIpResult.matchingUsers.map((mu: any) => (
@@ -827,10 +827,10 @@ export default function AdminPage() {
               <div>
                 <h2 className="text-base font-bold text-white flex items-center gap-2">
                   <Users size={18} className="text-cyan-400" />
-                  <span>Foglalt Nicknevek és Részletes Felhasználói IP Adatok ({filteredUsers.length})</span>
+                  <span>{t('admin.usersTableTitle', { count: filteredUsers.length })}</span>
                 </h2>
                 <span className="text-xs text-slate-400 font-medium">
-                  Összesen {stats?.usersCount || 0} regisztrált felhasználó a rendszerben
+                  {t('admin.totalUsersInSystem', { count: stats?.usersCount || 0 })}
                 </span>
               </div>
 
@@ -841,7 +841,7 @@ export default function AdminPage() {
                   type="text"
                   value={userSearchTerm}
                   onChange={(e) => setUserSearchTerm(e.target.value)}
-                  placeholder="Keresés név, IP, város, ország, ISP..."
+                  placeholder={t('admin.userSearchPlaceholder')}
                   className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white text-xs placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500"
                 />
               </div>
@@ -851,49 +851,49 @@ export default function AdminPage() {
               <table className="w-full text-left text-xs text-slate-300">
                 <thead className="sticky top-0 bg-slate-900 border-b border-slate-800 text-slate-400 font-bold uppercase text-[10px] z-10">
                   <tr>
-                    <th className="py-2.5 px-3">Felhasználó & Státusz</th>
-                    <th className="py-2.5 px-3">🌍 IP Cím & ISP</th>
-                    <th className="py-2.5 px-3">📍 Helyadatok (GeoIP)</th>
-                    <th className="py-2.5 px-3">💻 Eszköz & Rendszer</th>
-                    <th className="py-2.5 px-3">⏱️ Aktivitás</th>
-                    <th className="py-2.5 px-3 text-right">Művelet</th>
+                    <th className="py-2.5 px-3">{t('admin.colUserStatus')}</th>
+                    <th className="py-2.5 px-3">🌍 {t('admin.colIpIsp')}</th>
+                    <th className="py-2.5 px-3">📍 {t('admin.colGeoData')}</th>
+                    <th className="py-2.5 px-3">💻 {t('admin.colDeviceOs')}</th>
+                    <th className="py-2.5 px-3">⏱️ {t('admin.colActivity')}</th>
+                    <th className="py-2.5 px-3 text-right">{t('admin.colAction')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/60">
                   {filteredUsers.length > 0 ? (
                     filteredUsers.map((u: any) => (
                       <tr key={u.id} className="hover:bg-slate-800/40 transition">
-                        {/* 1. Felhasználó */}
+                        {/* 1. User */}
                         <td className="py-2.5 px-3">
                           <div className="flex items-center gap-2">
                             <span
                               className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${
                                 u.isOnline ? 'bg-emerald-400 animate-pulse' : 'bg-slate-600'
                               }`}
-                              title={u.isOnline ? 'Jelenleg Online' : 'Offline'}
+                              title={u.isOnline ? t('admin.currentlyOnline') : t('admin.offline')}
                             />
                             <div>
                               <div className="flex items-center gap-1.5 font-bold text-white text-sm">
                                 <span>{u.nickname}</span>
                                 {u.isGlobalAdmin && (
                                   <span className="px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 text-[10px] font-extrabold border border-amber-500/30">
-                                    FŐADMIN
+                                    {t('admin.superAdminBadge')}
                                   </span>
                                 )}
                               </div>
                               <span className="text-[10px] text-slate-500 font-mono block">
-                                Regisztrálva: {new Date(u.createdAt).toLocaleDateString()}
+                                {t('admin.registeredLabel')}: {new Date(u.createdAt).toLocaleDateString()}
                               </span>
                             </div>
                           </div>
                         </td>
 
-                        {/* 2. IP Cím & ISP */}
+                        {/* 2. IP & ISP */}
                         <td className="py-2.5 px-3">
                           {u.latestIp ? (
                             <div>
                               <div className="flex items-center gap-1.5">
-                                <span className="text-base" title={u.geo?.country || 'Ország'}>
+                                <span className="text-base" title={u.geo?.country || t('admin.countryLabel')}>
                                   {u.geo?.flag || '🌐'}
                                 </span>
                                 <span className="font-mono font-bold text-cyan-300 text-xs">
@@ -902,26 +902,26 @@ export default function AdminPage() {
                                 <button
                                   onClick={() => copyToClipboard(u.latestIp)}
                                   className="text-slate-400 hover:text-white p-0.5 rounded transition"
-                                  title="IP másolása"
+                                  title={t('admin.copyIpTitle')}
                                 >
                                   {copiedIp === u.latestIp ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
                                 </button>
                               </div>
                               <span className="text-[11px] text-slate-400 truncate block max-w-[170px]" title={u.geo?.isp || u.geo?.org}>
-                                {u.geo?.isp || u.geo?.org || (u.geo?.isLocal ? 'Helyi hálózat' : '—')}
+                                {u.geo?.isp || u.geo?.org || (u.geo?.isLocal ? t('admin.localNetwork') : '—')}
                               </span>
                               {u.allIps && u.allIps.length > 1 && (
                                 <span className="inline-block mt-0.5 px-1.5 py-0.2 rounded bg-slate-800 text-[9px] text-slate-400 font-mono">
-                                  +{u.allIps.length - 1} egyéb IP
+                                  +{u.allIps.length - 1} {t('admin.otherIps')}
                                 </span>
                               )}
                             </div>
                           ) : (
-                            <span className="text-slate-500 italic text-[11px]">Nincs rögzített IP</span>
+                            <span className="text-slate-500 italic text-[11px]">{t('admin.noIpRecorded')}</span>
                           )}
                         </td>
 
-                        {/* 3. Helyadatok */}
+                        {/* 3. Geo Data */}
                         <td className="py-2.5 px-3">
                           {u.geo ? (
                             <div>
@@ -936,20 +936,20 @@ export default function AdminPage() {
                                     target="_blank"
                                     rel="noreferrer"
                                     className="text-emerald-400 hover:underline flex items-center gap-0.5 text-[10px]"
-                                    title="Térkép megnyitása"
+                                    title={t('admin.openMapTitle')}
                                   >
                                     <MapPin size={10} />
-                                    <span>Térkép</span>
+                                    <span>{t('admin.mapLabel')}</span>
                                   </a>
                                 )}
                               </div>
                             </div>
                           ) : (
-                            <span className="text-slate-500 italic text-[11px]">Ismeretlen lokáció</span>
+                            <span className="text-slate-500 italic text-[11px]">{t('admin.unknownLocation')}</span>
                           )}
                         </td>
 
-                        {/* 4. Eszköz & Rendszer */}
+                        {/* 4. Device & OS */}
                         <td className="py-2.5 px-3">
                           {u.device ? (
                             <div className="flex items-center gap-2">
@@ -976,11 +976,11 @@ export default function AdminPage() {
                           )}
                         </td>
 
-                        {/* 5. Aktivitás */}
+                        {/* 5. Activity */}
                         <td className="py-2.5 px-3">
                           {u.isOnline ? (
                             <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-bold text-[10px] border border-emerald-500/30">
-                              Épp most aktív
+                              {t('admin.activeNow')}
                             </span>
                           ) : (
                             <span className="font-mono text-slate-400 text-[11px] block">
@@ -989,16 +989,16 @@ export default function AdminPage() {
                           )}
                         </td>
 
-                        {/* 6. Művelet */}
+                        {/* 6. Action */}
                         <td className="py-2.5 px-3 text-right">
                           <div className="flex items-center justify-end gap-1.5">
                             <button
                               onClick={() => setSelectedUserDetail(u)}
                               className="px-2.5 py-1 rounded-lg bg-cyan-600/20 hover:bg-cyan-600/40 text-cyan-300 font-semibold text-[10px] flex items-center gap-1 transition border border-cyan-500/30"
-                              title="Részletes IP és Eszköz Adatlap"
+                              title={t('admin.ipDetailTitle')}
                             >
                               <Eye size={12} />
-                              <span>IP Adatlap</span>
+                              <span>{t('admin.ipDetailBtn')}</span>
                             </button>
 
                             {u.id !== adminUser?.id && (
@@ -1010,9 +1010,9 @@ export default function AdminPage() {
                                     ? 'bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white'
                                     : 'bg-amber-500/20 hover:bg-amber-500/40 text-amber-300 border border-amber-500/40'
                                 }`}
-                                title={u.isGlobalAdmin ? 'Főadmin rang visszavonása' : 'Kinevezés Főadminisztrátornak'}
+                                title={u.isGlobalAdmin ? t('admin.revokeAdminTitle') : t('admin.grantAdminTitle')}
                               >
-                                {u.isGlobalAdmin ? '- Főadmin' : '+ Főadmin'}
+                                {u.isGlobalAdmin ? t('admin.revokeAdminBtn') : t('admin.grantAdminBtn')}
                               </button>
                             )}
                           </div>
@@ -1022,7 +1022,7 @@ export default function AdminPage() {
                   ) : (
                     <tr>
                       <td colSpan={6} className="py-6 text-center text-slate-500 italic">
-                        {userSearchTerm ? 'Nincs a keresési feltételeknek megfelelő felhasználó.' : 'Még nincs megjeleníthető felhasználó.'}
+                        {userSearchTerm ? t('admin.noUsersFound') : t('admin.noUsersYet')}
                       </td>
                     </tr>
                   )}
@@ -1052,7 +1052,7 @@ export default function AdminPage() {
                       <h2 className="text-xl font-black text-white">{selectedUserDetail.nickname}</h2>
                       {selectedUserDetail.isGlobalAdmin && (
                         <span className="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 text-xs font-extrabold border border-amber-500/30">
-                          FŐADMIN
+                          {t('admin.superAdminBadge')}
                         </span>
                       )}
                       <span
@@ -1062,7 +1062,7 @@ export default function AdminPage() {
                             : 'bg-slate-800 text-slate-400'
                         }`}
                       >
-                        {selectedUserDetail.isOnline ? 'Online' : 'Offline'}
+                        {selectedUserDetail.isOnline ? t('admin.currentlyOnline') : t('admin.offline')}
                       </span>
                     </div>
                     <p className="text-xs text-slate-400 font-mono mt-0.5">
@@ -1075,7 +1075,7 @@ export default function AdminPage() {
                 <div className="space-y-3">
                   <h3 className="text-xs font-bold uppercase text-slate-400 tracking-wider flex items-center gap-1.5">
                     <Globe size={14} className="text-cyan-400" />
-                    <span>Hálózati és Földrajzi Adatok (GeoIP)</span>
+                    <span>{t('admin.geoSectionTitle')}</span>
                   </h3>
 
                   <div className="p-4 rounded-2xl bg-slate-800/80 border border-slate-700/80 space-y-3 text-xs">
@@ -1083,16 +1083,16 @@ export default function AdminPage() {
                       <div className="flex items-center gap-2.5">
                         <span className="text-2xl">{selectedUserDetail.geo?.flag || '🌐'}</span>
                         <div>
-                          <span className="text-[10px] text-slate-400 uppercase font-bold block">Elsődleges IP Cím</span>
+                          <span className="text-[10px] text-slate-400 uppercase font-bold block">{t('admin.primaryIpLabel')}</span>
                           <div className="flex items-center gap-1.5">
                             <span className="font-mono text-sm font-bold text-cyan-300">
-                              {selectedUserDetail.latestIp || 'Nincs rögzítve'}
+                              {selectedUserDetail.latestIp || t('admin.noIpRecorded')}
                             </span>
                             {selectedUserDetail.latestIp && (
                               <button
                                 onClick={() => copyToClipboard(selectedUserDetail.latestIp)}
                                 className="text-slate-400 hover:text-white p-0.5 transition"
-                                title="Másolás vágólapra"
+                                title={t('admin.copyToClipboard')}
                               >
                                 {copiedIp === selectedUserDetail.latestIp ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
                               </button>
@@ -1109,7 +1109,7 @@ export default function AdminPage() {
                           className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 font-semibold transition"
                         >
                           <MapPin size={14} />
-                          <span>Megnyitás Google Térképen</span>
+                          <span>{t('admin.openGoogleMaps')}</span>
                           <ExternalLink size={12} />
                         </a>
                       )}
@@ -1117,37 +1117,37 @@ export default function AdminPage() {
 
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                       <div>
-                        <span className="text-[10px] text-slate-400 uppercase font-bold block">Ország</span>
+                        <span className="text-[10px] text-slate-400 uppercase font-bold block">{t('admin.countryLabel')}</span>
                         <span className="font-semibold text-slate-200">
                           {selectedUserDetail.geo?.country || '—'} ({selectedUserDetail.geo?.countryCode || '—'})
                         </span>
                       </div>
                       <div>
-                        <span className="text-[10px] text-slate-400 uppercase font-bold block">Város / Régió</span>
+                        <span className="text-[10px] text-slate-400 uppercase font-bold block">{t('admin.cityRegionLabel')}</span>
                         <span className="font-semibold text-slate-200">
                           {selectedUserDetail.geo?.city || '—'}, {selectedUserDetail.geo?.region || '—'}
                         </span>
                       </div>
                       <div>
-                        <span className="text-[10px] text-slate-400 uppercase font-bold block">Irányítószám</span>
+                        <span className="text-[10px] text-slate-400 uppercase font-bold block">{t('admin.postalLabel')}</span>
                         <span className="font-semibold text-slate-200 font-mono">
                           {selectedUserDetail.geo?.postal || '—'}
                         </span>
                       </div>
                       <div>
-                        <span className="text-[10px] text-slate-400 uppercase font-bold block">Szolgáltató (ISP)</span>
+                        <span className="text-[10px] text-slate-400 uppercase font-bold block">{t('admin.ispLabel')}</span>
                         <span className="font-semibold text-slate-200 truncate block" title={selectedUserDetail.geo?.isp}>
                           {selectedUserDetail.geo?.isp || '—'}
                         </span>
                       </div>
                       <div>
-                        <span className="text-[10px] text-slate-400 uppercase font-bold block">Szervezet / ASN</span>
+                        <span className="text-[10px] text-slate-400 uppercase font-bold block">{t('admin.orgLabel')}</span>
                         <span className="font-semibold text-slate-200 truncate block" title={`${selectedUserDetail.geo?.org} (${selectedUserDetail.geo?.asn})`}>
                           {selectedUserDetail.geo?.org || selectedUserDetail.geo?.asn || '—'}
                         </span>
                       </div>
                       <div>
-                        <span className="text-[10px] text-slate-400 uppercase font-bold block">Időzóna</span>
+                        <span className="text-[10px] text-slate-400 uppercase font-bold block">{t('admin.timezoneLabel')}</span>
                         <span className="font-semibold text-slate-200">
                           {selectedUserDetail.geo?.timezone || '—'}
                         </span>
@@ -1156,7 +1156,7 @@ export default function AdminPage() {
 
                     {selectedUserDetail.geo?.latitude && selectedUserDetail.geo?.longitude && (
                       <div className="pt-2 border-t border-slate-700/60 font-mono text-[11px] text-slate-400">
-                        Koordináták: {selectedUserDetail.geo.latitude}, {selectedUserDetail.geo.longitude}
+                        {t('admin.coordinatesLabel')}: {selectedUserDetail.geo.latitude}, {selectedUserDetail.geo.longitude}
                       </div>
                     )}
                   </div>
@@ -1166,34 +1166,34 @@ export default function AdminPage() {
                 <div className="space-y-3">
                   <h3 className="text-xs font-bold uppercase text-slate-400 tracking-wider flex items-center gap-1.5">
                     <Laptop size={14} className="text-violet-400" />
-                    <span>Eszköz és Böngésző Adatok</span>
+                    <span>{t('admin.deviceSectionTitle')}</span>
                   </h3>
 
                   <div className="p-4 rounded-2xl bg-slate-800/80 border border-slate-700/80 space-y-3 text-xs">
                     <div className="grid grid-cols-3 gap-3">
                       <div>
-                        <span className="text-[10px] text-slate-400 uppercase font-bold block">Eszköz Kategória</span>
+                        <span className="text-[10px] text-slate-400 uppercase font-bold block">{t('admin.deviceCategory')}</span>
                         <span className="font-semibold text-slate-200">
-                          {selectedUserDetail.device?.device || 'Asztali'}
+                          {selectedUserDetail.device?.device || t('admin.desktopDevice')}
                         </span>
                       </div>
                       <div>
-                        <span className="text-[10px] text-slate-400 uppercase font-bold block">Operációs Rendszer</span>
+                        <span className="text-[10px] text-slate-400 uppercase font-bold block">{t('admin.osLabel')}</span>
                         <span className="font-semibold text-slate-200">
-                          {selectedUserDetail.device?.os || 'Ismeretlen'}
+                          {selectedUserDetail.device?.os || t('admin.unknownOs')}
                         </span>
                       </div>
                       <div>
-                        <span className="text-[10px] text-slate-400 uppercase font-bold block">Böngésző</span>
+                        <span className="text-[10px] text-slate-400 uppercase font-bold block">{t('admin.browserLabel')}</span>
                         <span className="font-semibold text-slate-200">
-                          {selectedUserDetail.device?.browser || 'Ismeretlen'}
+                          {selectedUserDetail.device?.browser || t('admin.unknownBrowser')}
                         </span>
                       </div>
                     </div>
 
                     {selectedUserDetail.device?.raw && (
                       <div>
-                        <span className="text-[10px] text-slate-400 uppercase font-bold block mb-1">Nyers User-Agent</span>
+                        <span className="text-[10px] text-slate-400 uppercase font-bold block mb-1">{t('admin.rawUserAgent')}</span>
                         <div className="p-2.5 rounded-xl bg-slate-900 border border-slate-700/60 font-mono text-[11px] text-slate-300 break-all select-all">
                           {selectedUserDetail.device.raw}
                         </div>
@@ -1206,19 +1206,19 @@ export default function AdminPage() {
                 <div className="space-y-3">
                   <h3 className="text-xs font-bold uppercase text-slate-400 tracking-wider flex items-center gap-1.5">
                     <Activity size={14} className="text-amber-400" />
-                    <span>Munkamenet és IP Előzmények</span>
+                    <span>{t('admin.sessionHistoryTitle')}</span>
                   </h3>
 
                   <div className="p-4 rounded-2xl bg-slate-800/80 border border-slate-700/80 space-y-3 text-xs">
                     <div className="grid grid-cols-2 gap-3 pb-2 border-b border-slate-700/60">
                       <div>
-                        <span className="text-[10px] text-slate-400 uppercase font-bold block">Fiók Létrehozva</span>
+                        <span className="text-[10px] text-slate-400 uppercase font-bold block">{t('admin.accountCreatedLabel')}</span>
                         <span className="font-mono text-slate-200 font-semibold">
                           {new Date(selectedUserDetail.createdAt).toLocaleString()}
                         </span>
                       </div>
                       <div>
-                        <span className="text-[10px] text-slate-400 uppercase font-bold block">Utolsó Aktivitás</span>
+                        <span className="text-[10px] text-slate-400 uppercase font-bold block">{t('admin.lastActivityLabel')}</span>
                         <span className="font-mono text-slate-200 font-semibold">
                           {new Date(selectedUserDetail.lastSeenAt).toLocaleString()}
                         </span>
@@ -1227,7 +1227,7 @@ export default function AdminPage() {
 
                     <div>
                       <span className="text-[10px] text-slate-400 uppercase font-bold block mb-1.5">
-                        Összes használt IP cím ({selectedUserDetail.allIps?.length || 0}):
+                        {t('admin.allIpsLabel', { count: selectedUserDetail.allIps?.length || 0 })}
                       </span>
                       <div className="flex flex-wrap gap-1.5">
                         {selectedUserDetail.allIps && selectedUserDetail.allIps.length > 0 ? (
@@ -1240,14 +1240,14 @@ export default function AdminPage() {
                               <button
                                 onClick={() => copyToClipboard(ip)}
                                 className="text-slate-400 hover:text-white transition"
-                                title="Másolás"
+                                title={t('admin.copyToClipboard')}
                               >
                                 {copiedIp === ip ? <Check size={11} className="text-emerald-400" /> : <Copy size={11} />}
                               </button>
                             </span>
                           ))
                         ) : (
-                          <span className="text-slate-500 italic">Nincs további IP cím.</span>
+                          <span className="text-slate-500 italic">{t('admin.noMoreIps')}</span>
                         )}
                       </div>
                     </div>
@@ -1259,7 +1259,7 @@ export default function AdminPage() {
                     onClick={() => setSelectedUserDetail(null)}
                     className="px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-semibold text-xs transition"
                   >
-                    Bezárás
+                    {t('admin.closeBtn')}
                   </button>
                 </div>
               </div>
@@ -1278,8 +1278,8 @@ export default function AdminPage() {
                 <thead className="sticky top-0 bg-slate-900 border-b border-slate-800 text-slate-400 font-bold uppercase text-[10px]">
                   <tr>
                     <th className="py-2.5 px-3">{t('admin.timestamp')}</th>
-                    <th className="py-2.5 px-3">Felhasználó</th>
-                    <th className="py-2.5 px-3">IP Cím</th>
+                    <th className="py-2.5 px-3">{t('admin.colUser')}</th>
+                    <th className="py-2.5 px-3">{t('admin.colIpAddress')}</th>
                     <th className="py-2.5 px-3">{t('admin.action')}</th>
                     <th className="py-2.5 px-3">{t('admin.details')}</th>
                   </tr>

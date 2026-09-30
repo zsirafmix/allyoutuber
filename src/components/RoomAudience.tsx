@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useLanguage } from '@/lib/i18n';
 import { Role } from '@prisma/client';
 import { Users, Headphones, Eye, ShieldAlert, ShieldCheck, ChevronDown, ChevronUp, MessageSquare } from 'lucide-react';
 
@@ -25,6 +26,7 @@ export default function RoomAudience({
   currentUserId,
   onSelectWhisper,
 }: RoomAudienceProps) {
+  const { t } = useLanguage();
   const [isOpen, setIsOpen] = useState(true);
 
   const djs = participants.filter((p) => p.slotIndex !== null);
@@ -50,12 +52,13 @@ export default function RoomAudience({
   };
 
   return (
-    <div className="w-full rounded-2xl bg-slate-900/80 border border-slate-800 p-3.5 shadow-xl transition">
+    <div className="relative overflow-hidden w-full rounded-2xl bg-slate-900/85 border border-slate-800 p-3.5 shadow-xl transition">
+      <div className="absolute inset-0 bg-[url('/ui-texture.jpg')] bg-cover bg-center opacity-[0.03] mix-blend-screen pointer-events-none" />
       {/* Header with toggle */}
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-between text-left group"
+        className="relative z-10 w-full flex items-center justify-between text-left group"
       >
         <div className="flex items-center gap-2">
           <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400">
@@ -64,11 +67,11 @@ export default function RoomAudience({
           <div>
             <div className="flex items-center gap-2">
               <span className="text-sm font-bold text-slate-200 group-hover:text-white transition">
-                Jelenlévők a szobában
+                {t('room.whoIsHere')}
               </span>
               <span className="flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                {onlineCount} online
+                {t('room.onlineCount', { count: onlineCount })}
               </span>
             </div>
           </div>
@@ -76,7 +79,7 @@ export default function RoomAudience({
 
         <div className="flex items-center gap-2 text-xs text-slate-400">
           <span className="hidden sm:inline font-mono">
-            {djs.length} DJ · {spectators.length} hallgató
+            {t('room.listenersCount', { djCount: djs.length, spectatorCount: spectators.length })}
           </span>
           {isOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
         </div>
@@ -84,10 +87,10 @@ export default function RoomAudience({
 
       {/* Participants List */}
       {isOpen && (
-        <div className="mt-3 pt-3 border-t border-slate-800/80 space-y-2">
+        <div className="relative z-10 mt-3 pt-3 border-t border-slate-800/80 space-y-2">
           {participants.length === 0 ? (
             <div className="text-xs text-slate-500 text-center py-2">
-              Még senki sincs a listában.
+              {t('room.noListenersYet')}
             </div>
           ) : (
             <div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto pr-1">
@@ -111,7 +114,7 @@ export default function RoomAudience({
                       className={`w-1.5 h-1.5 rounded-full ${
                         p.isOnline ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'
                       }`}
-                      title={p.isOnline ? 'Online' : 'Inaktív'}
+                      title={p.isOnline ? t('slots.onlineStatus') : t('slots.offlineStatus')}
                     />
 
                     {/* DJ or Spectator badge */}
@@ -128,7 +131,7 @@ export default function RoomAudience({
                     {/* Nickname */}
                     <span className="font-semibold truncate max-w-[120px]" title={p.nickname}>
                       {p.nickname}
-                      {isMe && <span className="text-[10px] text-violet-400 ml-1 font-normal">(Te)</span>}
+                      {isMe && <span className="text-[10px] text-violet-400 ml-1 font-normal">{t('room.youBadge')}</span>}
                     </span>
 
                     {/* Role badge */}
@@ -140,7 +143,7 @@ export default function RoomAudience({
                         type="button"
                         onClick={() => onSelectWhisper(p.userId, p.nickname)}
                         className="p-1 rounded hover:bg-slate-700/70 text-slate-400 hover:text-purple-300 transition"
-                        title={`Privát üzenet ${p.nickname} részére`}
+                        title={t('room.whisperTo', { nick: p.nickname })}
                       >
                         <MessageSquare size={11} />
                       </button>

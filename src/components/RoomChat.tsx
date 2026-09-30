@@ -70,17 +70,18 @@ export default function RoomChat({
   };
 
   return (
-    <div className="flex flex-col h-[480px] rounded-2xl bg-slate-900/90 border border-slate-800 shadow-xl overflow-hidden">
+    <div className="relative overflow-hidden flex flex-col h-[480px] rounded-2xl bg-slate-900/90 border border-slate-800 shadow-xl">
+      <div className="absolute inset-0 bg-[url('/ui-texture.jpg')] bg-cover bg-center opacity-[0.04] mix-blend-screen pointer-events-none" />
       {/* Chat Header */}
-      <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between bg-slate-900">
+      <div className="relative z-10 px-4 py-3 border-b border-slate-800 flex items-center justify-between bg-slate-900/95">
         <div className="flex items-center gap-2">
-          <MessageSquare size={16} className="text-violet-400" />
+          <MessageSquare size={16} className="text-red-400" />
           <h3 className="text-sm font-bold text-slate-200">{t('chat.title')}</h3>
         </div>
         <div className="flex items-center gap-2">
           {selectedRecipient && (
             <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30 flex items-center gap-1">
-              <Lock size={10} /> Privát mód
+              <Lock size={10} /> {t('chat.privateMode')}
             </span>
           )}
           <span className="text-[11px] text-slate-500 font-mono">
@@ -90,7 +91,7 @@ export default function RoomChat({
       </div>
 
       {/* Messages Scroll Area */}
-      <div className="flex-1 p-3 overflow-y-auto space-y-2">
+      <div className="relative z-10 flex-1 p-3 overflow-y-auto space-y-2">
         {messages.map((msg) => {
           if (msg.deletedAt) return null;
 
@@ -117,11 +118,11 @@ export default function RoomChat({
                   <div className="flex items-center gap-1.5 font-bold text-purple-300 flex-wrap">
                     <Lock size={11} className="text-purple-400" />
                     <span className="text-[9px] uppercase tracking-wider font-extrabold px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-200 border border-purple-500/30">
-                      PRIVÁT
+                      {t('chat.whisperBadge')}
                     </span>
                     <span className="text-slate-200">{msg.senderNick}</span>
                     <span className="text-purple-400 text-[10px]">➔</span>
-                    <span className="text-purple-200 font-semibold">{msg.recipientNick || 'Neked'}</span>
+                    <span className="text-purple-200 font-semibold">{msg.recipientNick || t('chat.toYou')}</span>
                   </div>
 
                   <div className="flex items-center gap-2">
@@ -136,9 +137,9 @@ export default function RoomChat({
                         if (targetId) setSelectedRecipientId(targetId);
                       }}
                       className="text-[10px] font-bold text-purple-400 hover:text-purple-200 underline"
-                      title="Privát válasz"
+                      title={t('chat.whisperReply')}
                     >
-                      Válasz
+                      {t('chat.whisperReply')}
                     </button>
 
                     {isModOrAdmin && onDeleteMessage && (
@@ -196,7 +197,7 @@ export default function RoomChat({
                     <button
                       onClick={() => setSelectedRecipientId(msg.userId || null)}
                       className="text-purple-400 hover:text-purple-300 p-0.5"
-                      title={`Privát csevegés: ${msg.senderNick}`}
+                      title={t('chat.whisperToPlaceholder', { nick: msg.senderNick })}
                     >
                       <Lock size={11} />
                     </button>
@@ -229,19 +230,19 @@ export default function RoomChat({
           <div className="flex items-center gap-1.5">
             <span className="text-slate-400 font-semibold flex items-center gap-1">
               <Lock size={11} className={selectedRecipientId ? 'text-purple-400' : 'text-slate-500'} />
-              Címzett:
+              {t('chat.recipientLabel')}
             </span>
             <select
               value={selectedRecipientId || ''}
               onChange={(e) => setSelectedRecipientId(e.target.value || null)}
               className="bg-slate-800 text-slate-200 rounded px-2 py-0.5 border border-slate-700 text-xs focus:outline-none focus:ring-1 focus:ring-purple-500"
             >
-              <option value="">🌐 Mindenki (Nyilvános chat)</option>
+              <option value="">{t('chat.allPublic')}</option>
               {members
                 .filter((m) => m.userId !== currentUserId)
                 .map((m) => (
                   <option key={m.userId} value={m.userId}>
-                    🔒 Privát: {m.nickname} {m.role === 'ADMIN' ? '(Admin)' : m.role === 'MODERATOR' ? '(Mod)' : ''}
+                    🔒 {m.nickname} {m.role === 'ADMIN' ? '(Admin)' : m.role === 'MODERATOR' ? '(Mod)' : ''}
                   </option>
                 ))}
             </select>
@@ -253,7 +254,7 @@ export default function RoomChat({
               className="text-purple-400 hover:text-white flex items-center gap-0.5 text-[10px]"
             >
               <X size={10} />
-              <span>Visszaállítás</span>
+              <span>{t('chat.resetWhisper')}</span>
             </button>
           )}
         </div>
@@ -267,7 +268,7 @@ export default function RoomChat({
           onChange={(e) => setText(e.target.value)}
           placeholder={
             selectedRecipient
-              ? `🔒 Privát üzenet ${selectedRecipient.nickname} számára...`
+              ? t('chat.whisperToPlaceholder', { nick: selectedRecipient.nickname })
               : t('chat.placeholder')
           }
           maxLength={500}
@@ -285,7 +286,7 @@ export default function RoomChat({
               ? 'bg-purple-600 hover:bg-purple-500 shadow-md shadow-purple-600/30'
               : 'bg-violet-600 hover:bg-violet-500'
           }`}
-          title={selectedRecipient ? 'Privát üzenet küldése' : t('chat.send')}
+          title={selectedRecipient ? t('chat.sendWhisper') : t('chat.send')}
         >
           {selectedRecipient ? <Lock size={14} /> : <Send size={14} />}
         </button>

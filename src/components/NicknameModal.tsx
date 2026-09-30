@@ -33,7 +33,7 @@ export default function NicknameModal({ isOpen, onClose, onSuccess, targetSlot, 
     e.preventDefault();
     const trimmed = nickname.trim();
     if (trimmed.length < 2 || trimmed.length > 24) {
-      setError('A nicknévnek 2 és 24 karakter között kell lennie.');
+      setError(t('nicknameModal.minLengthError'));
       return;
     }
 
@@ -43,7 +43,7 @@ export default function NicknameModal({ isOpen, onClose, onSuccess, targetSlot, 
       trimmed.toLowerCase() !== currentSavedNick?.toLowerCase() &&
       occupiedNicks.some((n) => n.toLowerCase() === trimmed.toLowerCase())
     ) {
-      setError(`A(z) "${trimmed}" nicknév már foglalt ebben a szobában! Kérlek, válassz másikat.`);
+      setError(t('nicknameModal.takenError', { nick: trimmed }));
       return;
     }
 
@@ -82,7 +82,7 @@ export default function NicknameModal({ isOpen, onClose, onSuccess, targetSlot, 
 
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || 'Hiba történt a nicknév mentésekor.');
+        throw new Error(data.error || t('nicknameModal.saveError'));
       }
 
       localStorage.setItem('allyoutuber_token', data.sessionToken);
@@ -118,7 +118,7 @@ export default function NicknameModal({ isOpen, onClose, onSuccess, targetSlot, 
               {targetSlot ? t('room.claimSlotPrompt', { slot: targetSlot }) : t('room.occupySlot')}
             </h2>
             <p className="text-xs text-slate-400">
-              Válassz egyedi nicknevet a szobabeli részvételhez!
+              {t('nicknameModal.subtitle')}
             </p>
           </div>
         </div>
@@ -144,7 +144,7 @@ export default function NicknameModal({ isOpen, onClose, onSuccess, targetSlot, 
             {occupiedNicks.length > 0 && (
               <div className="mt-2">
                 <span className="text-[11px] text-slate-400 font-semibold block mb-1">
-                  Már foglalt nicknevek ebben a szobában:
+                  {t('nicknameModal.occupiedNotice')}
                 </span>
                 <div className="flex flex-wrap gap-1.5 max-h-20 overflow-y-auto">
                   {occupiedNicks.map((nick) => (
@@ -175,7 +175,7 @@ export default function NicknameModal({ isOpen, onClose, onSuccess, targetSlot, 
               className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white text-sm font-semibold shadow-lg shadow-violet-600/30 transition disabled:opacity-50"
             >
               {loading ? (
-                <span>Mentés...</span>
+                <span>{t('nicknameModal.saving')}</span>
               ) : (
                 <>
                   <Check size={16} />
