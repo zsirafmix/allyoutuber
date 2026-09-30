@@ -5,12 +5,11 @@ AllYouTuber is a real-time, synchronized YouTube jukebox and community watching 
 
 ## Component Architecture
 
-```
 +-------------------------------------------------------------+
-|                      Client Browser                         |
-|   - Next.js 14 React UI (Tailwind CSS, i18n 5 languages)    |
-|   - YouTube IFrame API (Drift sync, Autoplay handler)       |
-|   - Socket.IO Client (Realtime rooms, Chat, Reactions)      |
+|                 Clients (Mobile / Desktop / TV)             |
+|   - Mobile/Desktop Web: Full controls, Queue, Chat, Admin    |
+|   - Smart TV Client (/tv): Large 16:9 Display, Up Next, OLED |
+|     burn protection, Read-Only TV_CLIENT socket connection   |
 +------------------------------+------------------------------+
                                |
                         HTTPS & WSS

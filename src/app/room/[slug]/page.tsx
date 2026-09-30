@@ -13,6 +13,7 @@ import RoomChat, { ChatMessageData } from '@/components/RoomChat';
 import RoomAudience, { Participant } from '@/components/RoomAudience';
 import ModeratorDrawer from '@/components/ModeratorDrawer';
 import NicknameModal from '@/components/NicknameModal';
+import TvManagerModal from '@/components/TvManagerModal';
 import { getDJStyle } from '@/lib/djStyles';
 import { Role, RoomType, VideoSource, DJMode, QueueMode } from '@prisma/client';
 import {
@@ -27,6 +28,7 @@ import {
   ArrowLeft,
   Volume2,
   Sparkles,
+  Tv,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -106,6 +108,7 @@ export default function RoomPage() {
   const [accessError, setAccessError] = useState<string | null>(null);
   const [showModDrawer, setShowModDrawer] = useState(false);
   const [showNickModal, setShowNickModal] = useState(false);
+  const [showTvModal, setShowTvModal] = useState(false);
   const [targetClaimSlot, setTargetClaimSlot] = useState<number | null>(null);
   const [inviteCopied, setInviteCopied] = useState(false);
 
@@ -544,7 +547,17 @@ export default function RoomPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* TV Display Connect Button */}
+          <button
+            onClick={() => setShowTvModal(true)}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-red-600/20 hover:bg-red-600/30 border border-red-500/40 text-xs font-bold text-red-300 transition shadow-sm"
+            title="TV Kijelző csatlakoztatása"
+          >
+            <Tv size={14} className="text-red-400" />
+            <span className="hidden sm:inline">TV Kijelző</span>
+          </button>
+
           {/* Share / Copy link */}
           <button
             onClick={handleCopyLink}
@@ -705,6 +718,15 @@ export default function RoomPage() {
         onKickMember={handleKickMember}
         onMuteMember={handleMuteMember}
         onDeleteRoom={handleDeleteRoom}
+      />
+
+      {/* TV Manager Modal */}
+      <TvManagerModal
+        isOpen={showTvModal}
+        onClose={() => setShowTvModal(false)}
+        currentRoomId={roomData.id}
+        currentRoomName={roomData.name}
+        currentRoomSlug={roomData.slug}
       />
     </div>
   );

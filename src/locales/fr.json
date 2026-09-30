@@ -365,5 +365,27 @@
     "roomLocked": "Ce salon est actuellement verrouillé pour les nouveaux arrivants.",
     "invalidInvite": "Code d'invitation invalide ou expiré.",
     "unauthorized": "Vous ne disposez pas des autorisations nécessaires pour cette action."
+  },
+  "tv": {
+    "title": "Écran Smart TV",
+    "pairingTitle": "Code d'appairage TV",
+    "pairingDesc": "Connectez cette Smart TV à votre salon AllYouTuber depuis votre téléphone ou PC !",
+    "enterCodePrompt": "Saisissez ce code à 6 caractères sur votre téléphone :",
+    "qrTitle": "Connexion instantanée par QR code",
+    "qrDesc": "Pointez l'appareil photo de votre téléphone vers le QR code pour vous connecter !",
+    "refreshCode": "Demander un nouveau code (Télécommande Enter)",
+    "nowPlaying": "EN COURS DE LECTURE",
+    "upNext": "À SUIVRE",
+    "submittedBy": "Ajouté par",
+    "waitingForVideo": "En attente du prochain morceau...",
+    "startPlayback": "LANCER LA LECTURE (Enter)",
+    "remoteHint": "Appuyez sur la touche Entrée ou OK de votre télécommande pour démarrer la vidéo.",
+    "reconnecting": "Connexion perdue. Reconnexion en cours...",
+    "connectedDevices": "Téléviseurs connectés",
+    "connectNewTv": "Connecter un nouveau TV",
+    "disconnect": "Déconnecter",
+    "tvCodePlaceholder": "ex. A7K4Q2",
+    "tvNamePlaceholder": "ex. TV Salon",
+    "connectBtn": "Connecter le TV au Salon"
   }
 }

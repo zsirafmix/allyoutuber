@@ -365,5 +365,27 @@
     "roomLocked": "This room is currently locked to new visitors.",
     "invalidInvite": "Invalid or expired invitation code.",
     "unauthorized": "You do not have permission for this action."
+  },
+  "tv": {
+    "title": "Smart TV Display",
+    "pairingTitle": "TV Pairing Code",
+    "pairingDesc": "Connect this TV to your AllYouTuber room from your phone or PC!",
+    "enterCodePrompt": "Enter this 6-character code on your phone:",
+    "qrTitle": "Instant QR Code Connection",
+    "qrDesc": "Point your phone camera at the QR code to pair immediately!",
+    "refreshCode": "Request New Code (Remote Enter)",
+    "nowPlaying": "NOW PLAYING",
+    "upNext": "UP NEXT",
+    "submittedBy": "Submitted by",
+    "waitingForVideo": "Waiting for the next track...",
+    "startPlayback": "START PLAYBACK (Enter)",
+    "remoteHint": "Press the Enter or OK button on your TV remote to start video playback.",
+    "reconnecting": "Connection lost. Reconnecting...",
+    "connectedDevices": "Connected TVs",
+    "connectNewTv": "Connect New TV",
+    "disconnect": "Disconnect",
+    "tvCodePlaceholder": "e.g. A7K4Q2",
+    "tvNamePlaceholder": "e.g. Living Room TV",
+    "connectBtn": "Connect TV to Room"
   }
 }

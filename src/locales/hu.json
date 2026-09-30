@@ -365,5 +365,27 @@
     "roomLocked": "A szoba jelenleg le van zárva az új belépők elől.",
     "invalidInvite": "Érvénytelen vagy lejárt meghívókód.",
     "unauthorized": "Ehhez a művelethez nincs megfelelő jogosultságod."
+  },
+  "tv": {
+    "title": "Smart TV Kijelző",
+    "pairingTitle": "TV Párosítási Kód",
+    "pairingDesc": "Csatlakoztasd ezt a TV-t az AllYouTuber szobádhoz a telefonodról!",
+    "enterCodePrompt": "Írd be ezt a 6 karakteres kódot a telefonodon:",
+    "qrTitle": "Azonnali QR-kódos Csatlakozás",
+    "qrDesc": "Irányítsd a telefonod kameráját a QR-kódra a párosításhoz!",
+    "refreshCode": "Új kód kérése (Távirányító Enter)",
+    "nowPlaying": "MOST JÁTSZIK",
+    "upNext": "KÖVETKEZIK",
+    "submittedBy": "Beküldte",
+    "waitingForVideo": "Várakozás a következő videóra...",
+    "startPlayback": "LEJÁTSZÁS INDÍTÁSA (Enter)",
+    "remoteHint": "Nyomd meg az Enter vagy OK gombot a TV távirányítón a videó elindításához.",
+    "reconnecting": "Kapcsolat megszakadt. Helyreállítás folyamatban...",
+    "connectedDevices": "Szobához kapcsolt TV-k",
+    "connectNewTv": "Új TV Csatlakoztatása",
+    "disconnect": "Leválasztás",
+    "tvCodePlaceholder": "pl. A7K4Q2",
+    "tvNamePlaceholder": "pl. Nappali TV",
+    "connectBtn": "TV Csatlakoztatása a Szobához"
   }
 }

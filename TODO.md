@@ -85,3 +85,17 @@
 - [x] Render configuration verified (`render.yaml`)
 - [x] Documentation complete (`README.md`, `FINAL_REPORT.md`, `CHANGELOG.md`, `ARCHITECTURE.md`, `DEPLOYMENT.md`, `SECURITY.md`)
 - [x] Git commits and remote push to `https://github.com/zsirafmix/allyoutuber.git`
+
+## Phase 19: Smart TV Mode & Pairing System
+- [x] Dedicated Smart TV routes (`/tv`, `/tv/:roomId`, `?debug=1`)
+- [x] One-time 6-character TV pairing code generation (`ABCDEFGHJKLMNPQRSTUVWXYZ23456789`) with SHA-256 hash & QR code
+- [x] `TvSession` database model & 10-minute expiry
+- [x] Brute-force rate limiting (10 attempts/min/IP)
+- [x] Read-only `TV_CLIENT` Socket.IO protection
+- [x] Real-time `tv:queue_preview` (top 3 upcoming tracks)
+- [x] TV IFrame YouTube player with "LEJÁTSZÁS INDÍTÁSA" autoplay-blockage override & remote Enter navigation
+- [x] Large readable typography (32-48px) and OLED screen burn-in protection
+- [x] Mobile/desktop "TV Kijelző" manager modal to pair, list, rename, and disconnect displays
+- [x] Automated Vitest test suite (13 test files, 64 passing tests)
+- [x] Documentation in `docs/TV_MODE.md`
+

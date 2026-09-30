@@ -2,6 +2,16 @@
 
 All notable changes to the AllYouTuber project will be documented in this file.
 
+## [1.1.0] - 2026-09-30
+### Added
+- **Smart TV Mode (`/tv` & `/tv/:roomId`)**: Dedicated, lightweight Smart TV client designed for LG (webOS), Samsung (Tizen), Hisense (VIDAA), and other smart TV browsers.
+- **TV Pairing Code & QR Engine**: One-time 6-character pairing code generation (`A7K4Q2`), SHA-256 hash storage, 10-minute expiration, and QR code integration.
+- **TV Session Management & Rate Limiting**: `TvSession` database model with brute-force prevention (10 attempts/min/IP).
+- **Socket.IO TV Protocol**: Read-only `TV_CLIENT` role protection, real-time `tv:queue_preview` (top 3 next tracks), 30s heartbeat tracking, and sub-2.5s drift playback sync.
+- **TV Player & Remote Navigation**: 16:9 YouTube Iframe Player, "LEJÁTSZÁS INDÍTÁSA" autoplay-blockage override with TV remote Enter key listener, large high-contrast typography (32-48px), and OLED screen burn-in protection via periodic pixel shifting.
+- **Mobile/Desktop TV Manager Modal**: In-room "TV Kijelző" button and modal to pair, list, rename, and disconnect smart TVs in real time.
+- **Automated Test Suite**: Added TV pairing tests covering code generation, forbidden character filtering, hashing, and rate limiting.
+
 ## [1.0.0] - 2026-09-29
 ### Added
 - **Synchronized YouTube Playback**: Authoritative server master clock with automatic drift correction and autoplay unlock handling.

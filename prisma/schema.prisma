@@ -89,6 +89,7 @@ model Room {
   bans            Ban[]
   mutes           Mute[]
   auditLogs       AuditLog[]
+  tvSessions      TvSession[]
 
   @@index([slug])
   @@index([type])
@@ -295,4 +296,30 @@ model AppSettings {
   key       String   @unique
   value     String   @db.Text
   updatedAt DateTime @updatedAt
+}
+
+enum TvSessionStatus {
+  WAITING
+  PAIRED
+  DISCONNECTED
+  EXPIRED
+}
+
+model TvSession {
+  id                String          @id @default(cuid())
+  token             String          @unique
+  roomId            String?
+  room              Room?           @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  deviceName        String          @default("TV-1")
+  pairingCodeHash   String?         @unique
+  pairingCodePrefix String?
+  status            TvSessionStatus @default(WAITING)
+  expiresAt         DateTime
+  pairedAt          DateTime?
+  lastSeenAt        DateTime        @default(now())
+  createdAt         DateTime        @default(now())
+
+  @@index([roomId])
+  @@index([token])
+  @@index([pairingCodeHash])
 }

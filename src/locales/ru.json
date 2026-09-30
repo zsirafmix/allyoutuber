@@ -365,5 +365,27 @@
     "roomLocked": "Комната в данный момент закрыта для новых участников.",
     "invalidInvite": "Неверный или просроченный код приглашения.",
     "unauthorized": "Недостаточно прав для выполнения этого действия."
+  },
+  "tv": {
+    "title": "Smart TV Экран",
+    "pairingTitle": "Код сопряжения TV",
+    "pairingDesc": "Подключите этот Smart TV к комнате AllYouTuber со смартфона или ПК!",
+    "enterCodePrompt": "Введите этот 6-значный код на вашем телефоне:",
+    "qrTitle": "Быстрое подключение по QR-коду",
+    "qrDesc": "Наведите камеру смартфона на QR-код для мгновенного сопряжения!",
+    "refreshCode": "Запросить новый код (Пульт: Enter)",
+    "nowPlaying": "СЕЙЧАС ИГРАЕТ",
+    "upNext": "СЛЕДУЮЩИЕ ТРЕКИ",
+    "submittedBy": "Добавил",
+    "waitingForVideo": "Ожидание следующего видео...",
+    "startPlayback": "НАЧАТЬ ВОСПРОИЗВЕДЕНИЕ (Enter)",
+    "remoteHint": "Нажмите Enter или OK на пульте Smart TV для запуска видео.",
+    "reconnecting": "Связь прервана. Восстановление подключения...",
+    "connectedDevices": "Подключенные телевизоры",
+    "connectNewTv": "Подключить новый TV",
+    "disconnect": "Отключить",
+    "tvCodePlaceholder": "напр. A7K4Q2",
+    "tvNamePlaceholder": "напр. ТВ в гостиной",
+    "connectBtn": "Подключить TV к комнате"
   }
 }

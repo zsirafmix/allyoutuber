@@ -365,5 +365,27 @@
     "roomLocked": "Dieser Raum ist derzeit für neue Teilnehmer gesperrt.",
     "invalidInvite": "Ungültiger oder abgelaufener Einladungscode.",
     "unauthorized": "Du hast keine Berechtigung für diese Aktion."
+  },
+  "tv": {
+    "title": "Smart-TV-Anzeige",
+    "pairingTitle": "TV-Kopplungscode",
+    "pairingDesc": "Verbinde diesen TV mit deinem AllYouTuber-Raum von deinem Smartphone oder PC!",
+    "enterCodePrompt": "Gib diesen 6-stelligen Code auf deinem Smartphone ein:",
+    "qrTitle": "Sofortige QR-Code-Verbindung",
+    "qrDesc": "Richte deine Kamera auf den QR-Code, um das Gerät direkt zu koppeln!",
+    "refreshCode": "Neuen Code anfordern (Fernbedienung Enter)",
+    "nowPlaying": "JETZT LÄUFT",
+    "upNext": "ALS NÄCHSTES",
+    "submittedBy": "Eingereicht von",
+    "waitingForVideo": "Warten auf das nächste Video...",
+    "startPlayback": "WIEDERGABE STARTEN (Enter)",
+    "remoteHint": "Drücke die Enter- oder OK-Taste auf deiner Fernbedienung, um die Wiedergabe zu starten.",
+    "reconnecting": "Verbindung unterbrochen. Wiederverbindung läuft...",
+    "connectedDevices": "Verbundene TV-Geräte",
+    "connectNewTv": "Neuen TV verbinden",
+    "disconnect": "Trennen",
+    "tvCodePlaceholder": "z.B. A7K4Q2",
+    "tvNamePlaceholder": "z.B. Wohnzimmer-TV",
+    "connectBtn": "TV mit dem Raum verbinden"
   }
 }

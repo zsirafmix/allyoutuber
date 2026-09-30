@@ -10,6 +10,7 @@ import { getDJStyle } from '../lib/djStyles';
 import { castVote } from '../lib/vote';
 import { checkChatRateLimit, checkEmojiRateLimit, sanitizeText } from '../lib/rateLimit';
 import { Role, VideoSource, DJMode } from '@prisma/client';
+import { getTvSessionByToken, heartbeatTvSession } from '../lib/tv';
 import {
   registerSocket,
   unregisterSocket,
@@ -178,6 +179,18 @@ export function setupSocketIO(httpServer: HTTPServer) {
         lastActiveAt: m.lastActiveAt,
       })),
     });
+
+    // Broadcast TV-optimized next 3 videos queue preview
+    const queuePreview = queue.slice(0, 3).map((item, index) => ({
+      id: item.id,
+      position: index + 1,
+      title: item.title,
+      duration: item.duration,
+      submittedNick: item.submittedNick,
+      thumbnailUrl: item.thumbnailUrl,
+      source: item.source,
+    }));
+    io.to(`room:${roomId}`).emit('tv:queue_preview', queuePreview);
   }
 
   // Socket connection handler
@@ -281,6 +294,7 @@ export function setupSocketIO(httpServer: HTTPServer) {
     // 2. Claim Seat / Slot
     socket.on('room:claim_slot', async (data: { roomId: string; slotIndex: number; sessionToken: string }) => {
       try {
+        if (socket.data?.isTvClient) return;
         const { roomId, slotIndex, sessionToken } = data;
         const session = await getSession(sessionToken);
         if (!session) {
@@ -354,6 +368,7 @@ export function setupSocketIO(httpServer: HTTPServer) {
     // 3. Add Video to Queue
     socket.on('queue:add', async (data: { roomId: string; videoUrl: string; sessionToken: string }) => {
       try {
+        if (socket.data?.isTvClient) return;
         const { roomId, videoUrl, sessionToken } = data;
         const session = await getSession(sessionToken);
         if (!session) {
@@ -844,6 +859,117 @@ export function setupSocketIO(httpServer: HTTPServer) {
         await broadcastRoomState(roomId);
       } catch (err: any) {
         socket.emit('error', { message: err.message });
+      }
+    });
+
+    // TV MODE: 1. Initialize TV Socket
+    socket.on('tv:init', async (data: { token?: string; deviceName?: string; directSlug?: string }) => {
+      try {
+        const { token, directSlug } = data || {};
+
+        // Direct room TV mode by slug
+        if (directSlug) {
+          const directRoom = await prisma.room.findUnique({
+            where: { slug: directSlug },
+            include: { settings: true, playbackState: true },
+          });
+
+          if (directRoom) {
+            socket.data.isTvClient = true;
+            socket.join(`room:${directRoom.id}`);
+            socket.emit('tv:paired', {
+              roomId: directRoom.id,
+              roomSlug: directRoom.slug,
+              roomName: directRoom.name,
+              isDirect: true,
+            });
+            await broadcastRoomState(directRoom.id);
+            return;
+          }
+        }
+
+        if (!token) {
+          socket.emit('tv:error', { message: 'Token is required.' });
+          return;
+        }
+
+        const session = await getTvSessionByToken(token);
+        if (!session) {
+          socket.emit('tv:invalid_session', { message: 'TV Session not found.' });
+          return;
+        }
+
+        socket.data.isTvClient = true;
+        socket.data.tvSessionId = session.id;
+
+        // Join the private tv_session room so it receives pairing signals
+        socket.join(`tv_session:${session.id}`);
+
+        if (session.status === 'PAIRED' && session.roomId) {
+          socket.join(`room:${session.roomId}`);
+          socket.emit('tv:paired', {
+            sessionId: session.id,
+            deviceName: session.deviceName,
+            roomId: session.roomId,
+            roomSlug: session.room?.slug,
+            roomName: session.room?.name,
+          });
+          await broadcastRoomState(session.roomId);
+        } else {
+          socket.emit('tv:waiting', {
+            sessionId: session.id,
+            deviceName: session.deviceName,
+            status: session.status,
+            expiresAt: session.expiresAt,
+          });
+        }
+      } catch (err: any) {
+        console.error('Error in tv:init:', err);
+        socket.emit('tv:error', { message: err.message });
+      }
+    });
+
+    // TV MODE: 2. Heartbeat (every 30 seconds)
+    socket.on('tv:heartbeat', async (data: { token?: string }) => {
+      try {
+        if (socket.data.tvSessionId) {
+          await heartbeatTvSession(socket.data.tvSessionId);
+        } else if (data?.token) {
+          const session = await getTvSessionByToken(data.token);
+          if (session) {
+            socket.data.tvSessionId = session.id;
+            await heartbeatTvSession(session.id);
+          }
+        }
+      } catch (err) {
+        console.error('Error in tv:heartbeat:', err);
+      }
+    });
+
+    // TV MODE: 3. Precise Playback Sync Request
+    socket.on('tv:sync_request', async (data: { roomId: string }) => {
+      try {
+        const roomId = data.roomId;
+        if (!roomId) return;
+        const room = await prisma.room.findUnique({
+          where: { id: roomId },
+          include: { playbackState: true },
+        });
+        if (!room || !room.playbackState) return;
+        const ps = room.playbackState;
+        let currentPosition = 0;
+        if (ps.startedAt && !ps.paused) {
+          currentPosition = Math.max(0, (Date.now() - new Date(ps.startedAt).getTime()) / 1000);
+        }
+        socket.emit('tv:sync_response', {
+          serverTimestamp: Date.now(),
+          currentPosition,
+          startedAt: ps.startedAt,
+          paused: ps.paused,
+          currentVideoId: ps.currentVideoId,
+        });
+      } catch (err) {
+        console.error('Error in tv:sync_request:', err);
       }
     });
 

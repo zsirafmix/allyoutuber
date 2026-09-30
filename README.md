@@ -20,8 +20,9 @@ Target Deployment: [Render.com](https://render.com) (Node.js Web Service + Postg
 - **Live Chat & System Events**: Real-time room chat with system notifications (joins, skips, bans, DJ status), rate limiting, and XSS sanitization.
 - **Floating Emoji Reactions**: Celebrate highlights with floating emoji particles (❤️, 🔥, 😂, 👏, 😍, 😮, 👎).
 - **In-Room Moderation & Global Admin Panel**: Moderation tools (skip, mute, kick, ban, queue reorder) and a global `/admin` dashboard.
+- **Smart TV Mode (`/tv`)**: Dedicated, lightweight display interface tailored for LG (webOS), Samsung (Tizen), Hisense (VIDAA), and Smart TV browsers with 6-character code / QR pairing, OLED burn-in protection, large typography, and real-time up-next queue preview.
 - **5-Language Internationalization (i18n)**: English, German, Hungarian, Russian, and French.
-- **Mobile-First Responsive Design**: Cyberpunk party aesthetic optimized for smartphones, tablets, and desktop displays.
+- **Mobile-First Responsive Design**: Cyberpunk party aesthetic optimized for smartphones, tablets, TV displays, and desktops.
 
 ---
 
