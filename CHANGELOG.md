@@ -2,6 +2,18 @@
 
 All notable changes to the AllYouTuber project will be documented in this file.
 
+## [1.1.1] - 2026-09-30
+### Added
+- **Comprehensive AI Agent & Developer Handoff Documentation**:
+  - `AGENTS.md`: Full multi-agent handoff guide covering goals, status, architecture summary, build/test/run commands, cautionary areas, failed approaches, and exact next steps.
+  - `docs/HANDOFF.md`: Detailed session-by-session handoff logs.
+  - `docs/ARCHITECTURE.md`: Deep architecture document with Mermaid sequence and topology diagrams, data flows, and database schemas.
+  - `docs/SETUP.md`: Complete reproduction and environment setup guide for local development and Render.com cloud deployment.
+  - `docs/TROUBLESHOOTING.md`: Exhaustive issue catalog with root causes, failed attempts, and verified permanent fixes.
+  - `docs/KNOWN_ISSUES.md`: Catalog of known edge cases, severity ratings, workarounds, and planned permanent solutions.
+  - `docs/ROADMAP.md` & `TODO.md`: Structured, prioritized roadmap with dependencies, affected files, and acceptance criteria.
+  - `docs/TV_MODE.md`: Complete Smart TV technical guide covering webOS, Tizen, VIDAA, and keybinding protocols.
+
 ## [1.1.0] - 2026-09-30
 ### Added
 - **Smart TV Mode (`/tv` & `/tv/:roomId`)**: Dedicated, lightweight Smart TV client designed for LG (webOS), Samsung (Tizen), Hisense (VIDAA), and other smart TV browsers.
@@ -26,7 +38,7 @@ All notable changes to the AllYouTuber project will be documented in this file.
 - **Real-Time Voting**: Upvote / downvote mechanism with toggle, retraction, and instant score broadcast.
 - **Real-Time Chat & System Events**: Room-scoped chat with rate limiting (3 msgs / 3s), XSS sanitization, moderator deletion, and system events.
 - **Floating Emoji Reactions**: Live floating particle reaction overlay (❤️, 🔥, 😂, 👏, 😍, 😮, 👎) with rate limiting.
-- **Automated DJ Mode**: Auto-refill with OFF, AUTO, ALWAYS modes, 20-track repeat protection, and curated library.
+- **Automated DJ Mode**: Auto-refill with OFF, AUTO, ALWAYS modes, 20-track repeat protection, and curated library across 10 musical genres.
 - **Role-Based Moderation & Global Admin**:
   - Roles: USER, MODERATOR, ADMIN.
   - In-room moderation drawer (skip, mute, kick, ban, queue reorder).
